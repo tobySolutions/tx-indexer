@@ -30,16 +30,18 @@ async function main() {
   const address = parseAddress(WALLET_ADDRESS);
 
   const balance = await fetchWalletBalance(client.rpc, address);
-  
+
   console.log("Current Balance");
   console.log("--------------------------------------------");
-  console.log(`Address: ${WALLET_ADDRESS.slice(0, 8)}...${WALLET_ADDRESS.slice(-8)}`);
+  console.log(
+    `Address: ${WALLET_ADDRESS.slice(0, 8)}...${WALLET_ADDRESS.slice(-8)}`
+  );
   console.log(`SOL: ${balance.sol.ui.toFixed(9)}`);
-  
+
   for (const token of balance.tokens) {
     console.log(`${token.symbol}: ${token.amount.ui.toFixed(token.decimals)}`);
   }
-  
+
   console.log();
   console.log("Recent Transactions");
   console.log("--------------------------------------------");

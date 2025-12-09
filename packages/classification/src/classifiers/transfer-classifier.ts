@@ -3,13 +3,18 @@ import type {
   ClassifierContext,
 } from "../engine/classifier.interface";
 import type { TransactionClassification } from "@domain/tx/classification.types";
+import { detectFacilitator } from "@solana/constants/program-ids";
 
 export class TransferClassifier implements Classifier {
   name = "transfer";
   priority = 20;
 
   classify(context: ClassifierContext): TransactionClassification | null {
-    const { legs, walletAddress } = context;
+    const { legs, walletAddress, tx } = context;
+    
+    const facilitator = tx.accountKeys 
+      ? detectFacilitator(tx.accountKeys) 
+      : null;
 
     const walletPrefix = `wallet:${walletAddress.toLowerCase()}`;
 
@@ -58,6 +63,12 @@ export class TransferClassifier implements Classifier {
           },
           confidence: 0.95,
           isRelevant: true,
+          metadata: facilitator
+            ? {
+                facilitator,
+                payment_type: "facilitated",
+              }
+            : undefined,
         };
       }
     }
@@ -79,6 +90,12 @@ export class TransferClassifier implements Classifier {
           },
           confidence: 0.95,
           isRelevant: true,
+          metadata: facilitator
+            ? {
+                facilitator,
+                payment_type: "facilitated",
+              }
+            : undefined,
         };
       }
     }

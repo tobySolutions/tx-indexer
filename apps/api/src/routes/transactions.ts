@@ -147,9 +147,9 @@ transactions.get("/:address/transactions", async (c) => {
         direction: classification.direction,
         primaryAmount: classification.primaryAmount
           ? {
-              token: classification.primaryAmount.token,
-              amount: classification.primaryAmount.amount,
-              decimals: classification.primaryAmount.decimals,
+              token: classification.primaryAmount.token.symbol,
+              amount: classification.primaryAmount.amountUi,
+              decimals: classification.primaryAmount.token.decimals,
             }
           : null,
         counterparty: classification.counterparty
@@ -160,6 +160,7 @@ transactions.get("/:address/transactions", async (c) => {
           : null,
         fee: totalFee,
         memo: classification.metadata?.memo || null,
+        facilitator: classification.metadata?.facilitator || null,
       };
     });
 
@@ -181,7 +182,7 @@ transactions.get("/:address/transactions", async (c) => {
     });
 
     await c.env.CACHE.put(cacheKey, JSON.stringify(response), {
-      expirationTtl: 30,
+      expirationTtl: 60,
     });
 
     return c.json(response);

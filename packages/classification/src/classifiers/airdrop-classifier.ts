@@ -3,13 +3,18 @@ import type {
   ClassifierContext,
 } from "../engine/classifier.interface";
 import type { TransactionClassification } from "@domain/tx/classification.types";
+import { detectFacilitator } from "@solana/constants/program-ids";
 
 export class AirdropClassifier implements Classifier {
   name = "airdrop";
   priority = 70;
 
   classify(context: ClassifierContext): TransactionClassification | null {
-    const { legs, walletAddress } = context;
+    const { legs, walletAddress, tx } = context;
+    
+    const facilitator = tx.accountKeys 
+      ? detectFacilitator(tx.accountKeys) 
+      : null;
 
     const walletPrefix = `wallet:${walletAddress}`;
 
@@ -47,18 +52,36 @@ export class AirdropClassifier implements Classifier {
 
     const mainToken = tokenReceived[0]!;
 
+    const senderLegs = legs.filter(
+      (leg) =>
+        leg.side === "debit" &&
+        leg.amount.token.mint === mainToken.amount.token.mint &&
+        !leg.accountId.includes(walletPrefix)
+    );
+
+    const sender = senderLegs.length > 0 ? senderLegs[0] : null;
+
     return {
       primaryType: "airdrop",
       direction: "incoming",
       primaryAmount: mainToken.amount,
       secondaryAmount: null,
-      counterparty: null,
+      counterparty: sender
+        ? {
+            type: "unknown",
+            address: sender.accountId.replace(/^(external:|protocol:|wallet:)/, ""),
+          }
+        : null,
       confidence: 0.85,
       isRelevant: true,
       metadata: {
         airdrop_type: "token",
         token: mainToken.amount.token.symbol,
         amount: mainToken.amount.amountUi,
+        ...(facilitator && {
+          facilitator,
+          payment_type: "facilitated",
+        }),
       },
     };
   }

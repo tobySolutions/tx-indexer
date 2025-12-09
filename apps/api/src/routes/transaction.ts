@@ -117,9 +117,9 @@ transaction.get("/:signature", async (c) => {
         direction: classification.direction,
         primaryAmount: classification.primaryAmount
           ? {
-              token: classification.primaryAmount.token,
-              amount: classification.primaryAmount.amount,
-              decimals: classification.primaryAmount.decimals,
+              token: classification.primaryAmount.token.symbol,
+              amount: classification.primaryAmount.amountUi,
+              decimals: classification.primaryAmount.token.decimals,
             }
           : null,
         counterparty: classification.counterparty
@@ -130,6 +130,7 @@ transaction.get("/:signature", async (c) => {
           : null,
         confidence: classification.confidence,
         memo: classification.metadata?.memo || null,
+        facilitator: classification.metadata?.facilitator || null,
       },
       accounting: {
         legs: legs.map((leg) => ({

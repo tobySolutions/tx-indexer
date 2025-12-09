@@ -34,6 +34,49 @@ app.onError((err, c) => {
   return c.json(error("INTERNAL_ERROR", "Internal server error"), 500);
 });
 
+app.get("/", (c) => {
+  return c.json({
+    name: "Solana Transaction Indexer API",
+    version: "1.0.0",
+    endpoints: [
+      {
+        path: "/api/v1/health",
+        method: "GET",
+        description: "Health check and RPC connectivity status",
+      },
+      {
+        path: "/api/v1/wallet/:address/balance",
+        method: "GET",
+        description: "Get wallet SOL and token balances",
+        params: {
+          address: "Wallet address (base58)",
+        },
+      },
+      {
+        path: "/api/v1/wallet/:address/transactions",
+        method: "GET",
+        description: "Get wallet transaction history with pagination",
+        params: {
+          address: "Wallet address (base58)",
+        },
+        query: {
+          limit: "Number of transactions (1-100, default: 10)",
+          before: "Cursor for pagination (transaction signature)",
+        },
+      },
+      {
+        path: "/api/v1/transaction/:signature",
+        method: "GET",
+        description: "Get single transaction details with accounting",
+        params: {
+          signature: "Transaction signature (base58, 88 chars)",
+        },
+      },
+    ],
+    documentation: "https://github.com/yourusername/tx-indexer",
+  });
+});
+
 app.route("/api/v1/health", health);
 app.route("/api/v1/wallet", wallet);
 app.route("/api/v1/wallet", transactions);

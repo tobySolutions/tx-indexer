@@ -43,6 +43,12 @@ export const ORCA_WHIRLPOOL_PROGRAM_ID = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3u
 export const METAPLEX_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
 
 // ============================================
+// Payment Facilitators
+// ============================================
+
+export const PAYAI_FACILITATOR = "2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4";
+
+// ============================================
 // Helper Collections
 // ============================================
 
@@ -62,4 +68,19 @@ export const DEX_PROGRAM_IDS = [
   RAYDIUM_PROGRAM_ID,
   ORCA_WHIRLPOOL_PROGRAM_ID,
 ] as const;
+
+export const KNOWN_FACILITATORS = [
+  PAYAI_FACILITATOR,
+] as const;
+
+export function detectFacilitator(accountKeys: string[]): string | null {
+  for (const facilitator of KNOWN_FACILITATORS) {
+    if (accountKeys.includes(facilitator)) {
+      if (facilitator === PAYAI_FACILITATOR) {
+        return "payai";
+      }
+    }
+  }
+  return null;
+}
 

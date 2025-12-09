@@ -3,7 +3,7 @@ import {
   fetchWalletSignatures,
   fetchTransactionsBatch,
 } from "@solana/fetcher/transactions";
-import { fetchWalletBalance, formatBalance } from "@solana/fetcher/balances";
+import { fetchWalletBalance } from "@solana/fetcher/balances";
 import { detectProtocol } from "@classification/protocols/detector";
 import {
   getWalletTokenChanges,
@@ -12,6 +12,7 @@ import {
 import { transactionToLegs } from "@solana/mappers/transaction-to-legs";
 import { validateLegsBalance } from "@domain/tx/leg-validation";
 import { TRACKED_TOKENS } from "@domain/money/token-registry";
+import { classifyTransaction } from "@classification/engine/classification-service";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
 const WALLET_ADDRESS = process.env.WALLET_ADDRESS;
@@ -101,6 +102,54 @@ async function main() {
 
     const legs = transactionToLegs(tx, WALLET_ADDRESS);
     const validation = validateLegsBalance(legs);
+    const classification = classifyTransaction(legs, WALLET_ADDRESS, tx);
+
+    if (tx.memo) {
+      console.log(`\n   Memo: ${tx.memo}`);
+    }
+
+    console.log(`\n   Classification:`);
+    console.log(`     Type: ${classification.primaryType}`);
+    console.log(`     Direction: ${classification.direction}`);
+    if (classification.primaryAmount) {
+      console.log(
+        `     Amount: ${classification.primaryAmount.amountUi.toFixed(
+          classification.primaryAmount.token.decimals
+        )} ${classification.primaryAmount.token.symbol}`
+      );
+    }
+    if (classification.secondaryAmount) {
+      console.log(
+        `     Received: ${classification.secondaryAmount.amountUi.toFixed(
+          classification.secondaryAmount.token.decimals
+        )} ${classification.secondaryAmount.token.symbol}`
+      );
+    }
+    if (classification.counterparty) {
+      console.log(`     Counterparty: ${classification.counterparty.name}`);
+      if (classification.counterparty.address) {
+        console.log(
+          `       Address: ${classification.counterparty.address.slice(0, 8)}...${classification.counterparty.address.slice(-8)}`
+        );
+      }
+    }
+    if (classification.metadata?.payment_type === "solana_pay") {
+      console.log(`     Payment Type: Solana Pay`);
+      if (classification.metadata.merchant) {
+        console.log(`     Merchant: ${classification.metadata.merchant}`);
+      }
+      if (classification.metadata.item) {
+        console.log(`     Item: ${classification.metadata.item}`);
+      }
+      if (classification.metadata.label) {
+        console.log(`     Label: ${classification.metadata.label}`);
+      }
+      if (classification.metadata.message) {
+        console.log(`     Message: ${classification.metadata.message}`);
+      }
+    }
+    console.log(`     Confidence: ${classification.confidence}`);
+    console.log(`     Relevant: ${classification.isRelevant ? "Yes" : "No"}`);
 
     console.log(`\n   Transaction Legs (${legs.length} total):`);
     for (const leg of legs) {

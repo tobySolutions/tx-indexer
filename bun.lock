@@ -43,7 +43,9 @@
         "zod": "^4.1.13",
       },
       "devDependencies": {
+        "@repo/eslint-config": "workspace:*",
         "@types/bun": "latest",
+        "eslint": "^9.39.1",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -72,9 +74,12 @@
       "name": "classification",
       "dependencies": {
         "domain": "workspace:*",
+        "solana": "workspace:*",
       },
       "devDependencies": {
+        "@repo/eslint-config": "workspace:*",
         "@types/bun": "latest",
+        "eslint": "^9.39.1",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -86,7 +91,9 @@
         "zod": "^4.1.13",
       },
       "devDependencies": {
+        "@repo/eslint-config": "workspace:*",
         "@types/bun": "latest",
+        "eslint": "^9.39.1",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -117,7 +124,9 @@
         "zod": "^4.1.13",
       },
       "devDependencies": {
+        "@repo/eslint-config": "workspace:*",
         "@types/bun": "latest",
+        "eslint": "^9.39.1",
       },
       "peerDependencies": {
         "typescript": "^5",

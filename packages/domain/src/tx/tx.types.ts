@@ -3,9 +3,9 @@ import { z } from "zod";
 import type { Signature } from "@solana/kit";
 import type { MoneyAmount } from "@domain/money/money.types";
 
-const TxDirectionSchema = z.enum(["incoming", "outgoing", "self", "neutral"]);
+export const TxDirectionSchema = z.enum(["incoming", "outgoing", "self", "neutral"]);
 
-const TxPrimaryTypeSchema = z.enum([
+export const TxPrimaryTypeSchema = z.enum([
   "transfer",
   "swap",
   "nft_purchase",
@@ -59,6 +59,7 @@ export const RawTransactionSchema = z.object({
   preBalances: z.array(z.union([z.number(), z.bigint()])).optional(),
   postBalances: z.array(z.union([z.number(), z.bigint()])).optional(),
   accountKeys: z.array(z.string()).optional(),
+  memo: z.string().nullable().optional(),
 });
 
 const TxLegSideSchema = z.enum(["debit", "credit"]);

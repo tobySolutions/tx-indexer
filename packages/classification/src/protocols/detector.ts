@@ -1,43 +1,55 @@
 import type { ProtocolInfo } from "@domain/actors/counterparty.types";
+import {
+  JUPITER_V6_PROGRAM_ID,
+  JUPITER_V4_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+  SYSTEM_PROGRAM_ID,
+  COMPUTE_BUDGET_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  METAPLEX_PROGRAM_ID,
+  ORCA_WHIRLPOOL_PROGRAM_ID,
+  RAYDIUM_PROGRAM_ID,
+  STAKE_PROGRAM_ID,
+} from "@solana/constants/program-ids";
 
 const KNOWN_PROGRAMS: Record<string, ProtocolInfo> = {
-  "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": {
+  [JUPITER_V6_PROGRAM_ID]: {
     id: "jupiter",
     name: "Jupiter",
   },
-  "JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB": {
+  [JUPITER_V4_PROGRAM_ID]: {
     id: "jupiter-v4",
     name: "Jupiter V4",
   },
-  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA": {
+  [TOKEN_PROGRAM_ID]: {
     id: "spl-token",
     name: "Token Program",
   },
-  "11111111111111111111111111111111": {
+  [SYSTEM_PROGRAM_ID]: {
     id: "system",
     name: "System Program",
   },
-  "ComputeBudget111111111111111111111111111111": {
+  [COMPUTE_BUDGET_PROGRAM_ID]: {
     id: "compute-budget",
     name: "Compute Budget",
   },
-  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL": {
+  [ASSOCIATED_TOKEN_PROGRAM_ID]: {
     id: "associated-token",
     name: "Associated Token Program",
   },
-  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s": {
+  [METAPLEX_PROGRAM_ID]: {
     id: "metaplex",
     name: "Metaplex",
   },
-  "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc": {
+  [ORCA_WHIRLPOOL_PROGRAM_ID]: {
     id: "orca-whirlpool",
     name: "Orca Whirlpool",
   },
-  "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8": {
+  [RAYDIUM_PROGRAM_ID]: {
     id: "raydium",
     name: "Raydium",
   },
-  "Stake11111111111111111111111111111111111111": {
+  [STAKE_PROGRAM_ID]: {
     id: "stake",
     name: "Stake Program",
   },

@@ -7,6 +7,7 @@ import type {
 } from "@solana/kit";
 import type { RawTransaction } from "@domain/tx/tx.types";
 import { extractProgramIds } from "@solana/mappers/transaction-mapper";
+import { extractMemo } from "@solana/mappers/memo-parser";
 
 export interface FetchTransactionsConfig {
   limit?: number;
@@ -106,6 +107,7 @@ export async function fetchTransaction(
     accountKeys: response.transaction.message.accountKeys.map((key) =>
       key.toString()
     ),
+    memo: extractMemo(response.transaction),
   };
 }
 

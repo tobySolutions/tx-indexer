@@ -27,6 +27,27 @@ export const config = [
     },
   },
   {
-    ignores: ["dist/**"],
+    ignores: ["dist/**", "eslint.config.js"],
   },
 ];
+
+/**
+ * A shared ESLint configuration with TypeScript project references.
+ * Use this for TypeScript projects that need type-aware linting.
+ *
+ * @param {string} tsconfigRootDir - The root directory for tsconfig.json
+ * @returns {import("eslint").Linter.Config[]}
+ */
+export function createConfig(tsconfigRootDir) {
+  return [
+    ...config,
+    {
+      languageOptions: {
+        parserOptions: {
+          project: true,
+          tsconfigRootDir,
+        },
+      },
+    },
+  ];
+}

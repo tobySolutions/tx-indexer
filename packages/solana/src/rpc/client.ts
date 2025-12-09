@@ -5,6 +5,8 @@ import {
   type RpcSubscriptions,
   address,
   type Address,
+  signature,
+  type Signature,
 } from "@solana/kit";
 
 export interface SolanaClient {
@@ -37,5 +39,14 @@ export function createSolanaClient(
  */
 export function parseAddress(addr: string): Address {
   return address(addr);
+}
+
+/**
+ * Parses and validates a Solana transaction signature string.
+ * 
+ * @param sig - Base58-encoded transaction signature
+ */
+export function parseSignature(sig: string): Signature {
+  return signature(sig);
 }
 

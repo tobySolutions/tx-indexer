@@ -1,10 +1,12 @@
-import type { Address, Rpc, GetBalanceApi } from "@solana/kit";
-
 import {
-  getTokenInfo,
-  KNOWN_TOKENS,
-  TRACKED_TOKENS,
-} from "@domain/money/token-registry";
+  type Address,
+  type Rpc,
+  type GetBalanceApi,
+  type GetTokenAccountsByOwnerApi,
+  address,
+} from "@solana/kit";
+
+import { getTokenInfo, KNOWN_TOKENS } from "@domain/money/token-registry";
 
 export interface WalletBalance {
   address: string;
@@ -28,22 +30,22 @@ export interface TokenAccountBalance {
 
 /**
  * Fetches wallet balance including SOL and SPL tokens
- * 
+ *
  * @param rpc - Solana RPC client
  * @param walletAddress - Wallet address to query
  * @param tokenMints - Optional array of token mint addresses to track. If omitted, returns all tokens in wallet
  * @returns Wallet balance data with SOL and token balances
- * 
+ *
  * @example
  * // Fetch all tokens
  * const allBalances = await fetchWalletBalance(rpc, address);
- * 
+ *
  * @example
  * // Fetch specific tokens only
  * const usdcOnly = await fetchWalletBalance(rpc, address, ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"]);
  */
 export async function fetchWalletBalance(
-  rpc: Rpc<GetBalanceApi>,
+  rpc: Rpc<GetBalanceApi & GetTokenAccountsByOwnerApi>,
   walletAddress: Address,
   tokenMints?: readonly string[]
 ): Promise<WalletBalance> {
@@ -52,7 +54,7 @@ export async function fetchWalletBalance(
 
   const tokenAccounts = await fetchTokenAccounts(rpc, walletAddress);
 
-  const tokens = tokenMints 
+  const tokens = tokenMints
     ? filterToTrackedTokens(tokenAccounts, tokenMints)
     : Array.from(tokenAccounts.values());
 
@@ -67,7 +69,7 @@ export async function fetchWalletBalance(
 }
 
 async function fetchTokenAccounts(
-  rpc: any,
+  rpc: Rpc<GetBalanceApi & GetTokenAccountsByOwnerApi>,
   walletAddress: Address
 ): Promise<Map<string, TokenAccountBalance>> {
   const accountsMap = new Map<string, TokenAccountBalance>();
@@ -76,15 +78,14 @@ async function fetchTokenAccounts(
     const response = await rpc
       .getTokenAccountsByOwner(
         walletAddress,
-        { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { programId: address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") },
         { encoding: "jsonParsed" }
       )
       .send();
 
     for (const account of response.value) {
       const parsedInfo = account.account.data.parsed.info;
-      const mintRaw = parsedInfo.mint;
-      const mint = typeof mintRaw === "string" ? mintRaw : mintRaw.toString();
+      const mint = parsedInfo.mint;
 
       const tokenInfo = getTokenInfo(mint);
       const symbol = tokenInfo?.symbol || mint.substring(0, 8);
@@ -111,7 +112,7 @@ async function fetchTokenAccounts(
 
 /**
  * Filters token accounts to only include specified mints, adding zero balances for missing tokens
- * 
+ *
  * @param fetchedAccounts - Map of mint addresses to token balances from RPC
  * @param tokenMints - Array of token mint addresses to include in results
  */
@@ -158,4 +159,3 @@ export function formatBalance(balance: WalletBalance): string[] {
 
   return lines;
 }
-

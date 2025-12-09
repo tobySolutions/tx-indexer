@@ -150,27 +150,9 @@ async function main() {
     }
     console.log(`     Confidence: ${classification.confidence}`);
     console.log(`     Relevant: ${classification.isRelevant ? "Yes" : "No"}`);
-
-    console.log(`\n   Transaction Legs (${legs.length} total):`);
-    for (const leg of legs) {
-      const sign = leg.side === "credit" ? "+" : "-";
-      const amount = leg.amount.amountUi.toFixed(leg.amount.token.decimals);
-      console.log(
-        `     ${leg.role}: ${sign}${amount} ${leg.amount.token.symbol}`
-      );
-      console.log(`       Account: ${leg.accountId}`);
-    }
-
-    if (!validation.isBalanced) {
-      console.log(`\n   WARNING: Legs not balanced!`);
-      for (const [token, balance] of Object.entries(validation.byToken)) {
-        if (balance.diff > 0.000001) {
-          console.log(
-            `     ${token}: Debits=${balance.debits.toFixed(6)}, Credits=${balance.credits.toFixed(6)}, Diff=${balance.diff.toFixed(6)}`
-          );
-        }
-      }
-    }
+    console.log(
+      `\n   Accounting: ${legs.length} legs (${validation.isBalanced ? "✓ balanced" : "⚠ unbalanced"})`
+    );
   });
 
   console.log("\n============================================");

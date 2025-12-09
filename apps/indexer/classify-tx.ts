@@ -89,6 +89,9 @@ async function main() {
   }
   if (classification.metadata?.payment_type === "solana_pay") {
     console.log(`Payment Type: Solana Pay`);
+    if (classification.metadata.memo) {
+      console.log(`Payment Memo: ${classification.metadata.memo}`);
+    }
     if (classification.metadata.merchant) {
       console.log(`Merchant: ${classification.metadata.merchant}`);
     }

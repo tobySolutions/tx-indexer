@@ -54,6 +54,7 @@ export class TransferClassifier implements Classifier {
           counterparty: {
             type: "unknown",
             address: received.accountId.replace("external:", ""),
+            name: `${received.accountId.replace("external:", "").slice(0, 8)}...`,
           },
           confidence: 0.95,
           isRelevant: true,
@@ -74,6 +75,7 @@ export class TransferClassifier implements Classifier {
           counterparty: {
             type: "unknown",
             address: sent.accountId.replace("external:", ""),
+            name: `${sent.accountId.replace("external:", "").slice(0, 8)}...`,
           },
           confidence: 0.95,
           isRelevant: true,

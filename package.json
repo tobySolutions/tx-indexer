@@ -23,6 +23,8 @@
   ],
   "dependencies": {
     "@solana/kit": "^5.0.0",
+    "@solana/pay": "^0.2.6",
+    "bs58": "^6.0.0",
     "dotenv": "^17.2.3"
   }
 }

@@ -45,6 +45,7 @@ export async function fetchWalletSignatures(
     err: sig.err,
     programIds: [],
     protocol: null,
+    memo: sig.memo || null,
   }));
 }
 
@@ -72,6 +73,14 @@ export async function fetchTransaction(
   if (!response) {
     return null;
   }
+
+  // Try to get memo from response metadata first (already decoded by RPC)
+  // Fall back to manual extraction if not available
+  const transactionWithLogs = {
+    ...response.transaction,
+    meta: { logMessages: response.meta?.logMessages },
+  };
+  const memo = extractMemo(transactionWithLogs);
 
   return {
     signature,
@@ -107,7 +116,7 @@ export async function fetchTransaction(
     accountKeys: response.transaction.message.accountKeys.map((key) =>
       key.toString()
     ),
-    memo: extractMemo(response.transaction),
+    memo,
   };
 }
 

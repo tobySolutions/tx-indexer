@@ -1,6 +1,7 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
+  "globalEnv": ["RPC_URL", "SIGNATURE", "WALLET_ADDRESS"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

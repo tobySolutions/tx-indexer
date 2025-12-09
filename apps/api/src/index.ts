@@ -62,6 +62,7 @@ app.get("/", (c) => {
         query: {
           limit: "Number of transactions (1-100, default: 10)",
           before: "Cursor for pagination (transaction signature)",
+          format: "Response format: 'raw' or 'classified' (default: 'classified')",
         },
       },
       {
@@ -70,6 +71,9 @@ app.get("/", (c) => {
         description: "Get single transaction details with accounting",
         params: {
           signature: "Transaction signature (base58, 88 chars)",
+        },
+        query: {
+          format: "Response format: 'raw' or 'classified' (default: 'classified')",
         },
       },
     ],

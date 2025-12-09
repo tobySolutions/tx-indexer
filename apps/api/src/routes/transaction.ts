@@ -13,6 +13,10 @@ const transaction = new Hono<{ Bindings: Bindings }>();
 
 const SignatureSchema = z.string().length(88);
 
+const QuerySchema = z.object({
+  format: z.enum(["raw", "classified"]).optional().default("classified"),
+});
+
 /**
  * Get single transaction by signature
  * 
@@ -82,8 +86,9 @@ transaction.get("/:signature", async (c) => {
   try {
     const rawSignature = c.req.param("signature");
     const validSignature = SignatureSchema.parse(rawSignature);
+    const query = QuerySchema.parse(c.req.query());
 
-    const cacheKey = `tx:${validSignature}`;
+    const cacheKey = `tx:${validSignature}:${query.format}`;
     const cached = await c.env.CACHE.get(cacheKey);
     
     if (cached) {
@@ -97,6 +102,28 @@ transaction.get("/:signature", async (c) => {
 
     if (!tx) {
       return c.json(error("NOT_FOUND", "Transaction not found"), 404);
+    }
+
+    if (query.format === "raw") {
+      const response = success({
+        signature: validSignature,
+        blockTime: tx.blockTime ? Number(tx.blockTime) : null,
+        slot: tx.slot ? Number(tx.slot) : null,
+        status: tx.err ? "failed" : "success",
+        transaction: {
+          ...tx,
+          slot: Number(tx.slot),
+          blockTime: tx.blockTime ? Number(tx.blockTime) : null,
+          preBalances: tx.preBalances?.map((b) => Number(b)),
+          postBalances: tx.postBalances?.map((b) => Number(b)),
+        },
+      });
+
+      await c.env.CACHE.put(cacheKey, JSON.stringify(response), {
+        expirationTtl: 300,
+      });
+
+      return c.json(response);
     }
 
     tx.protocol = detectProtocol(tx.programIds);

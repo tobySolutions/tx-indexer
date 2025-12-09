@@ -23,6 +23,7 @@ const AddressSchema = z.string().min(32).max(44);
 const QuerySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(10),
   before: z.string().optional(),
+  format: z.enum(["raw", "classified"]).optional().default("classified"),
 });
 
 /**
@@ -85,7 +86,7 @@ transactions.get("/:address/transactions", async (c) => {
     const validAddress = AddressSchema.parse(rawAddress);
     const query = QuerySchema.parse(c.req.query());
 
-    const cacheKey = `txs:${validAddress}:${query.limit}:${query.before || "latest"}`;
+    const cacheKey = `txs:${validAddress}:${query.limit}:${query.before || "latest"}:${query.format}`;
     const cached = await c.env.CACHE.get(cacheKey);
 
     if (cached) {
@@ -117,6 +118,45 @@ transactions.get("/:address/transactions", async (c) => {
       client.rpc,
       signatures.map((s) => s.signature)
     );
+
+    if (query.format === "raw") {
+      const formattedTxs = rawTransactions.map((tx) => ({
+        signature: tx.signature,
+        blockTime: tx.blockTime ? Number(tx.blockTime) : null,
+        slot: tx.slot ? Number(tx.slot) : null,
+        status: tx.err ? "failed" : "success",
+        transaction: {
+          ...tx,
+          slot: Number(tx.slot),
+          blockTime: tx.blockTime ? Number(tx.blockTime) : null,
+          preBalances: tx.preBalances?.map((b) => Number(b)),
+          postBalances: tx.postBalances?.map((b) => Number(b)),
+        },
+      }));
+
+      const hasMore = signatures.length === query.limit;
+      const nextCursor =
+        hasMore && signatures.length > 0
+          ? signatures[signatures.length - 1]?.signature
+          : undefined;
+
+      const response = success({
+        wallet: validAddress,
+        transactions: formattedTxs,
+        pagination: {
+          limit: query.limit,
+          count: formattedTxs.length,
+          hasMore,
+          ...(nextCursor && { nextCursor }),
+        },
+      });
+
+      await c.env.CACHE.put(cacheKey, JSON.stringify(response), {
+        expirationTtl: 60,
+      });
+
+      return c.json(response);
+    }
 
     const classifiedTransactions = rawTransactions.map((tx) => {
       tx.protocol = detectProtocol(tx.programIds);

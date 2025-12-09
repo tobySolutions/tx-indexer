@@ -126,6 +126,7 @@ Returns classified transaction history with automatic spam filtering.
 - `address` (path) - Solana wallet address (base58)
 - `limit` (query, optional) - Number of transactions (1-100, default: 10)
 - `before` (query, optional) - Cursor for pagination (transaction signature)
+- `format` (query, optional) - Response format: `raw` or `classified` (default: `classified`)
 
 **Example:**
 ```bash
@@ -192,6 +193,50 @@ curl http://localhost:8787/api/v1/wallet/Hb6dzd4pYxmFYKkJDWuhzBEUkkaE93sFcvXYtri
 - `payai` - PayAI x402 payment facilitator
 - `null` - No known facilitator
 
+**Raw Format Example:**
+```bash
+curl "http://localhost:8787/api/v1/wallet/Hb6dzd4pYxmFYKkJDWuhzBEUkkaE93sFcvXYtriTkmw9/transactions?limit=5&format=raw"
+```
+
+**Raw Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "wallet": "Hb6dzd4pYxmFYKkJDWuhzBEUkkaE93sFcvXYtriTkmw9",
+    "transactions": [
+      {
+        "signature": "5x...ABC",
+        "blockTime": 1765241073,
+        "slot": 377750116,
+        "status": "success",
+        "transaction": {
+          "signature": "5x...ABC",
+          "slot": 377750116,
+          "blockTime": 1765241073,
+          "err": null,
+          "programIds": ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"],
+          "protocol": {
+            "id": "token-program",
+            "name": "Token Program"
+          },
+          "preTokenBalances": [...],
+          "postTokenBalances": [...],
+          "accountKeys": [...],
+          "memo": "Payment for services"
+        }
+      }
+    ],
+    "pagination": {
+      "limit": 5,
+      "count": 5,
+      "hasMore": true,
+      "nextCursor": "5x...ABC"
+    }
+  }
+}
+```
+
 **Caching:** 30 seconds
 
 ---
@@ -204,6 +249,7 @@ Returns detailed transaction classification with double-entry accounting breakdo
 
 **Parameters:**
 - `signature` (path) - Transaction signature (base58, 88 characters)
+- `format` (query, optional) - Response format: `raw` or `classified` (default: `classified`)
 
 **Example:**
 ```bash
@@ -275,6 +321,71 @@ curl http://localhost:8787/api/v1/transaction/5x...ABC
       "name": "System Program"
     },
     "fee": 0.000005
+  },
+  "meta": {
+    "timestamp": "2025-12-09T15:00:00.000Z",
+    "version": "1.0.0"
+  }
+}
+```
+
+**Raw Format Example:**
+```bash
+curl "http://localhost:8787/api/v1/transaction/5x...ABC?format=raw"
+```
+
+**Raw Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "signature": "5x...ABC",
+    "blockTime": 1765241073,
+    "slot": 377750116,
+    "status": "success",
+    "transaction": {
+      "signature": "5x...ABC",
+      "slot": 377750116,
+      "blockTime": 1765241073,
+      "err": null,
+      "programIds": ["11111111111111111111111111111111", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"],
+      "protocol": {
+        "id": "system",
+        "name": "System Program"
+      },
+      "preTokenBalances": [
+        {
+          "accountIndex": 1,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "owner": "Hb6dzd4pYxmFYKkJDWuhzBEUkkaE93sFcvXYtriTkmw9",
+          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "uiTokenAmount": {
+            "amount": "100500000",
+            "decimals": 6,
+            "uiAmountString": "100.5"
+          }
+        }
+      ],
+      "postTokenBalances": [
+        {
+          "accountIndex": 1,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "owner": "Hb6dzd4pYxmFYKkJDWuhzBEUkkaE93sFcvXYtriTkmw9",
+          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "uiTokenAmount": {
+            "amount": "0",
+            "decimals": 6,
+            "uiAmountString": "0"
+          }
+        }
+      ],
+      "accountKeys": [
+        "Hb6dzd4pYxmFYKkJDWuhzBEUkkaE93sFcvXYtriTkmw9",
+        "CmGgLQL36Y9ubtTsy2zmE46TAxwCBm66onZmPPhUWNqv",
+        "11111111111111111111111111111111"
+      ],
+      "memo": "Payment for services"
+    }
   },
   "meta": {
     "timestamp": "2025-12-09T15:00:00.000Z",

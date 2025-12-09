@@ -182,7 +182,7 @@ Transaction Legs (4 total):
 🔜 Spam/dust filtering  
 🔜 Real-time transaction subscriptions  
 🔜 NFT mint/sale classification  
-🔜 CSV export for accounting  
+🔜 CSV export  
 
 ## Technology
 

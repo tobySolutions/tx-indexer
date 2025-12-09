@@ -358,8 +358,8 @@ bun run deploy
 
 **Caching:**
 
-- Balance endpoint: 30 seconds TTL
-- Transactions list: 30 seconds TTL
+- Balance endpoint: 60 seconds TTL
+- Transactions list: 60 seconds TTL
 - Single transaction: 5 minutes TTL
 
 **Spam Filter:**

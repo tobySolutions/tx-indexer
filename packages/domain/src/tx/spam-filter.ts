@@ -64,16 +64,13 @@ function isDustTransaction(
   return Math.abs(amountUi) < config.minTokenAmountUsd;
 }
 
-export function filterSpamTransactions(
-  transactions: Array<{
-    tx: RawTransaction;
-    classification: TransactionClassification;
-  }>,
-  config?: SpamFilterConfig
-): Array<{
+export function filterSpamTransactions<T extends {
   tx: RawTransaction;
   classification: TransactionClassification;
-}> {
+}>(
+  transactions: T[],
+  config?: SpamFilterConfig
+): T[] {
   return transactions.filter(
     ({ tx, classification }) => !isSpamTransaction(tx, classification, config)
   );

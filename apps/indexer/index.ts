@@ -12,7 +12,6 @@ import {
 import { transactionToLegs } from "@solana/mappers/transaction-to-legs";
 import { validateLegsBalance } from "@domain/tx/leg-validation";
 import { TRACKED_TOKENS } from "@domain/money/token-registry";
-import type { Signature } from "@solana/kit";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
 const WALLET_ADDRESS = process.env.WALLET_ADDRESS;

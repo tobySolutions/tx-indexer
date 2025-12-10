@@ -3,14 +3,29 @@ import {
   createSolanaRpcSubscriptions,
   type Rpc,
   type RpcSubscriptions,
+  type GetBalanceApi,
+  type GetTokenAccountsByOwnerApi,
+  type GetSignaturesForAddressApi,
+  type GetTransactionApi,
   address,
   type Address,
   signature,
   type Signature,
 } from "@solana/kit";
 
+/**
+ * Union type of all RPC APIs used by the transaction indexer.
+ * 
+ * This ensures type safety when calling RPC methods while maintaining
+ * flexibility for the complete indexer API surface.
+ */
+export type IndexerRpcApi = GetBalanceApi 
+  & GetTokenAccountsByOwnerApi 
+  & GetSignaturesForAddressApi 
+  & GetTransactionApi;
+
 export interface SolanaClient {
-  rpc: Rpc<any>;
+  rpc: Rpc<IndexerRpcApi>;
   rpcSubscriptions: RpcSubscriptions<any>;
 }
 

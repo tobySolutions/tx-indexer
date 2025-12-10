@@ -1,9 +1,5 @@
-import { createSolanaClient, parseSignature } from "@tx-indexer/solana/rpc/client";
-import { fetchTransaction } from "@tx-indexer/solana/fetcher/transactions";
-import { detectProtocol } from "@tx-indexer/classification/protocols/detector";
-import { transactionToLegs } from "@tx-indexer/solana/mappers/transaction-to-legs";
+import { createIndexer } from "tx-indexer";
 import { validateLegsBalance } from "@tx-indexer/core/tx/leg-validation";
-import { classifyTransaction } from "@tx-indexer/classification/engine/classification-service";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
 const SIGNATURE = process.env.SIGNATURE;
@@ -25,18 +21,19 @@ async function main() {
   console.log("TX Classifier\n");
   console.log("============================================\n");
 
-  const client = createSolanaClient(RPC_URL);
+  const indexer = createIndexer({ rpcUrl: RPC_URL });
 
   console.log(`Fetching transaction: ${SIGNATURE.slice(0, 16)}...\n`);
 
-  const tx = await fetchTransaction(client.rpc, parseSignature(SIGNATURE));
+  const result = await indexer.getTransaction(SIGNATURE, WALLET_ADDRESS);
 
-  if (!tx) {
+  if (!result) {
     console.error("Transaction not found");
     process.exit(1);
   }
 
-  tx.protocol = detectProtocol(tx.programIds);
+  const { tx, classification, legs } = result;
+  const validation = validateLegsBalance(legs);
 
   const date = tx.blockTime
     ? new Date(Number(tx.blockTime) * 1000).toLocaleString()
@@ -56,10 +53,6 @@ async function main() {
   if (tx.memo) {
     console.log(`\nMemo: ${tx.memo}`);
   }
-
-  const legs = transactionToLegs(tx, WALLET_ADDRESS);
-  const validation = validateLegsBalance(legs);
-  const classification = classifyTransaction(legs, WALLET_ADDRESS, tx);
 
   console.log(`\n\nClassification`);
   console.log("--------------------------------------------");

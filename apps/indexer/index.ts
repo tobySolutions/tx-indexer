@@ -1,19 +1,10 @@
-import { createSolanaClient, parseAddress } from "@tx-indexer/solana/rpc/client";
-import {
-  fetchWalletSignatures,
-  fetchTransactionsBatch,
-} from "@tx-indexer/solana/fetcher/transactions";
-import { fetchWalletBalance } from "@tx-indexer/solana/fetcher/balances";
-import { detectProtocol } from "@tx-indexer/classification/protocols/detector";
+import { createIndexer,  } from "tx-indexer";
+import { TRACKED_TOKENS } from "@tx-indexer/core/money/token-registry";
 import {
   getWalletTokenChanges,
   getWalletSolChange,
 } from "@tx-indexer/solana/mappers/balance-parser";
-import { transactionToLegs } from "@tx-indexer/solana/mappers/transaction-to-legs";
 import { validateLegsBalance } from "@tx-indexer/core/tx/leg-validation";
-import { TRACKED_TOKENS } from "@tx-indexer/core/money/token-registry";
-import { classifyTransaction } from "@tx-indexer/classification/engine/classification-service";
-import { filterSpamTransactions } from "@tx-indexer/core/tx/spam-filter";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
 const WALLET_ADDRESS = process.env.WALLET_ADDRESS;
@@ -28,10 +19,9 @@ async function main() {
   console.log("TX Indexer\n");
   console.log("============================================\n");
 
-  const client = createSolanaClient(RPC_URL);
-  const address = parseAddress(WALLET_ADDRESS);
+  const indexer = createIndexer({ rpcUrl: RPC_URL });
 
-  const balance = await fetchWalletBalance(client.rpc, address, TRACKED_TOKENS);
+  const balance = await indexer.getBalance(WALLET_ADDRESS, TRACKED_TOKENS);
 
   console.log("Current Balance");
   console.log("--------------------------------------------");
@@ -48,38 +38,23 @@ async function main() {
   console.log("Recent Transactions");
   console.log("--------------------------------------------");
 
-  const signatures = await fetchWalletSignatures(client.rpc, address, {
+  const filteredTransactions = await indexer.getTransactions(WALLET_ADDRESS, {
     limit: 10,
-  });
-
-  const transactions = await fetchTransactionsBatch(
-    client.rpc,
-    signatures.map((s) => s.signature)
-  );
-
-  if (transactions.length === 0) {
-    console.log("No transactions found");
-    return;
-  }
-
-  const classifiedTransactions = transactions.map((tx) => {
-    tx.protocol = detectProtocol(tx.programIds);
-    const legs = transactionToLegs(tx, WALLET_ADDRESS);
-    const classification = classifyTransaction(legs, WALLET_ADDRESS, tx);
-    return { tx, classification, legs };
-  });
-
-  const filteredTransactions = filterSpamTransactions(
-    classifiedTransactions,
-    {
+    filterSpam: true,
+    spamConfig: {
       minSolAmount: 0.001,
       minTokenAmountUsd: 0.01,
       minConfidence: 0.5,
       allowFailed: false,
-    }
-  );
+    },
+  });
 
-  console.log(`\nShowing ${filteredTransactions.length} of ${transactions.length} transactions (${transactions.length - filteredTransactions.length} filtered as spam)\n`);
+  if (filteredTransactions.length === 0) {
+    console.log("No transactions found");
+    return;
+  }
+
+  console.log(`\nShowing ${filteredTransactions.length} transactions\n`);
 
   filteredTransactions.forEach(({ tx, classification, legs }, index) => {
 

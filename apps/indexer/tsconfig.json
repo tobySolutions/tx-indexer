@@ -3,6 +3,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "tx-indexer": ["../../packages/sdk/src/index.ts"],
+      "tx-indexer/*": ["../../packages/sdk/src/*"],
       "@tx-indexer/core/*": ["../../packages/domain/src/*"],
       "@tx-indexer/solana/*": ["../../packages/solana/src/*"],
       "@tx-indexer/classification/*": ["../../packages/classification/src/*"]

@@ -1,0 +1,14 @@
+{
+  "extends": "../typescript-config/bun.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@tx-indexer/core/*": ["../domain/src/*"],
+      "@tx-indexer/solana/*": ["../solana/src/*"],
+      "@tx-indexer/classification/*": ["../classification/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
+

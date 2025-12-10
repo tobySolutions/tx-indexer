@@ -1,0 +1,43 @@
+{
+  "name": "tx-indexer",
+  "version": "0.1.0",
+  "description": "Solana transaction indexer and classifier SDK",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "solana",
+    "blockchain",
+    "transaction",
+    "indexer",
+    "classifier",
+    "sdk"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@repo/eslint-config": "workspace:*",
+    "eslint": "^9.39.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@tx-indexer/core": "workspace:*",
+    "@tx-indexer/solana": "workspace:*",
+    "@tx-indexer/classification": "workspace:*",
+    "@solana/kit": "^5.0.0",
+    "zod": "^4.1.13"
+  }
+}
+

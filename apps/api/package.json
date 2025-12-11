@@ -15,9 +15,9 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
     "@repo/typescript-config": "workspace:*",
-    "classification": "workspace:*",
-    "domain": "workspace:*",
-    "solana": "workspace:*",
+    "@tx-indexer/classification": "workspace:*",
+    "@tx-indexer/core": "workspace:*",
+    "@tx-indexer/solana": "workspace:*",
     "typescript": "5.9.2",
     "wrangler": "^4.53.0"
   }

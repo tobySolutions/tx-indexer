@@ -12,7 +12,9 @@
   },
   "scripts": {
     "check-types": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "size": "size-limit",
+    "size:why": "size-limit --why"
   },
   "keywords": [
     "solana",
@@ -25,9 +27,13 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/bun": "latest",
     "@repo/eslint-config": "workspace:*",
-    "eslint": "^9.39.1"
+    "@size-limit/esbuild": "^12.0.0",
+    "@size-limit/esbuild-why": "^12.0.0",
+    "@size-limit/preset-small-lib": "^12.0.0",
+    "@types/bun": "latest",
+    "eslint": "^9.39.1",
+    "size-limit": "^12.0.0"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -40,4 +46,3 @@
     "zod": "^4.1.13"
   }
 }
-

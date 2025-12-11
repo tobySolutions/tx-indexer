@@ -432,7 +432,6 @@ Transaction Legs (4 total):
 - Double-entry accounting - Validates all transactions balance (debits = credits)
 - Protocol detection - Identifies Jupiter, Raydium, Orca, and other major protocols
 - Automatic classification - Categorizes as transfer, swap, airdrop, or Solana Pay
-- Solana Pay support - Extracts merchant, order, and payment metadata from memos
 - Facilitator detection - Identifies PayAI and other payment facilitators
 
 **SDK Capabilities**

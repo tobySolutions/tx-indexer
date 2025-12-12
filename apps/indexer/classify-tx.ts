@@ -1,31 +1,35 @@
+import { address, signature } from "@solana/kit";
 import { createIndexer } from "tx-indexer";
 import { validateLegsBalance } from "@tx-indexer/core/tx/leg-validation";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
-const SIGNATURE = process.env.SIGNATURE;
-const WALLET_ADDRESS = process.env.WALLET_ADDRESS;
+const SIGNATURE_STRING = process.env.SIGNATURE;
+const WALLET_ADDRESS_STRING = process.env.WALLET_ADDRESS;
 
 async function main() {
-  if (!SIGNATURE) {
+  if (!SIGNATURE_STRING) {
     console.error("Error: SIGNATURE environment variable is required");
     console.error("Usage: SIGNATURE=<sig> WALLET_ADDRESS=<address> bun apps/indexer/classify-tx.ts");
     process.exit(1);
   }
 
-  if (!WALLET_ADDRESS) {
+  if (!WALLET_ADDRESS_STRING) {
     console.error("Error: WALLET_ADDRESS environment variable is required");
     console.error("Usage: SIGNATURE=<sig> WALLET_ADDRESS=<address> bun apps/indexer/classify-tx.ts");
     process.exit(1);
   }
+
+  const txSignature = signature(SIGNATURE_STRING);
+  const walletAddress = address(WALLET_ADDRESS_STRING);
 
   console.log("TX Classifier\n");
   console.log("============================================\n");
 
   const indexer = createIndexer({ rpcUrl: RPC_URL });
 
-  console.log(`Fetching transaction: ${SIGNATURE.slice(0, 16)}...\n`);
+  console.log(`Fetching transaction: ${SIGNATURE_STRING.slice(0, 16)}...\n`);
 
-  const result = await indexer.getTransaction(SIGNATURE, WALLET_ADDRESS);
+  const result = await indexer.getTransaction(txSignature, walletAddress);
 
   if (!result) {
     console.error("Transaction not found");

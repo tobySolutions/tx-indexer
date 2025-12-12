@@ -1,15 +1,16 @@
+import type { Address } from "@solana/kit";
 import type { TxLeg } from "@tx-indexer/core/tx/tx.types";
 
-export function getUserLegs(legs: TxLeg[], walletAddress: string): TxLeg[] {
+export function getUserLegs(legs: TxLeg[], walletAddress: Address): TxLeg[] {
   const walletPrefix = `wallet:${walletAddress}`;
   return legs.filter((leg) => leg.accountId.includes(walletPrefix));
 }
 
-export function getUserDebits(legs: TxLeg[], walletAddress: string): TxLeg[] {
+export function getUserDebits(legs: TxLeg[], walletAddress: Address): TxLeg[] {
   return getUserLegs(legs, walletAddress).filter((leg) => leg.side === "debit");
 }
 
-export function getUserCredits(legs: TxLeg[], walletAddress: string): TxLeg[] {
+export function getUserCredits(legs: TxLeg[], walletAddress: Address): TxLeg[] {
   return getUserLegs(legs, walletAddress).filter(
     (leg) => leg.side === "credit"
   );
@@ -68,7 +69,7 @@ export function getTotalAmount(legs: TxLeg[], tokenSymbol: string): number {
 
 export function getNetChange(
   legs: TxLeg[],
-  walletAddress: string,
+  walletAddress: Address,
   tokenSymbol: string
 ): number {
   const userLegs = getUserLegs(legs, walletAddress);

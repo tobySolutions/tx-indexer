@@ -1,9 +1,10 @@
+import type { Address } from "@solana/kit";
 import type { TxLeg, RawTransaction } from "@tx-indexer/core/tx/tx.types";
 import type { TransactionClassification } from "@tx-indexer/core/tx/classification.types";
 
 export interface ClassifierContext {
   legs: TxLeg[];
-  walletAddress: string;
+  walletAddress?: Address;
   tx: RawTransaction;
 }
 

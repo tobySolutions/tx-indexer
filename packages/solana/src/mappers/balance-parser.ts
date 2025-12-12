@@ -1,3 +1,4 @@
+import type { Address } from "@solana/kit";
 import type { RawTransaction, TokenBalance } from "@tx-indexer/core/tx/tx.types";
 import type { MoneyAmount, TokenInfo } from "@tx-indexer/core/money/money.types";
 import {
@@ -158,7 +159,7 @@ export function extractSolBalanceChanges(
 
 export function getWalletTokenChanges(
   tx: RawTransaction,
-  walletAddress: string,
+  walletAddress: Address,
   filterMints?: string[]
 ): TokenBalanceChange[] {
   const allChanges = extractTokenBalanceChanges(tx, filterMints);
@@ -171,7 +172,7 @@ export function getWalletTokenChanges(
 
 export function getWalletSolChange(
   tx: RawTransaction,
-  walletAddress: string
+  walletAddress: Address
 ): SolBalanceChange | null {
   if (!tx.accountKeys || tx.accountKeys.length === 0) {
     return null;

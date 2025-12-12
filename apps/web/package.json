@@ -11,16 +11,19 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
     "@repo/ui": "*",
+    "@solana/client": "^1.1.4",
+    "@solana/react-hooks": "^1.1.4",
     "class-variance-authority": "^0.7.1",
-    "tx-indexer": "workspace:*",
     "clsx": "^2.1.1",
     "lucide-react": "^0.560.0",
     "next": "^16.0.7",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.4.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "tx-indexer": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",

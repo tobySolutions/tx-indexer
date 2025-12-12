@@ -19,6 +19,53 @@ export class SolanaPayClassifier implements Classifier {
       return null;
     }
 
+    const memo = parseSolanaPayMemo(tx.memo!);
+    const isObserverMode = !walletAddress;
+
+    if (isObserverMode) {
+      const senderLeg = legs.find(
+        (leg) =>
+          leg.accountId.startsWith("external:") &&
+          leg.side === "debit" &&
+          leg.role === "sent"
+      );
+
+      const receiverLeg = legs.find(
+        (leg) =>
+          leg.accountId.startsWith("external:") &&
+          leg.side === "credit" &&
+          leg.role === "received"
+      );
+
+      const primaryAmount = senderLeg?.amount ?? receiverLeg?.amount ?? null;
+      const senderAddress = senderLeg?.accountId.replace("external:", "");
+      const receiverAddress = receiverLeg?.accountId.replace("external:", "");
+
+      return {
+        primaryType: "transfer",
+        direction: "neutral",
+        primaryAmount,
+        secondaryAmount: null,
+        counterparty: memo.merchant
+          ? { address: receiverAddress ?? "", name: memo.merchant, type: "merchant" }
+          : null,
+        confidence: 0.95,
+        isRelevant: true,
+        metadata: {
+          payment_type: "solana_pay",
+          observer_mode: true,
+          sender: senderAddress,
+          receiver: receiverAddress,
+          memo: memo.raw,
+          merchant: memo.merchant,
+          item: memo.item,
+          reference: memo.reference,
+          label: memo.label,
+          message: memo.message,
+        },
+      };
+    }
+
     const walletPrefix = `wallet:${walletAddress}`;
 
     const userSent = legs.find(
@@ -35,8 +82,6 @@ export class SolanaPayClassifier implements Classifier {
         leg.role === "received"
     );
 
-    const memo = parseSolanaPayMemo(tx.memo!);
-
     const direction = userSent ? "outgoing" : "incoming";
     const primaryAmount = userSent?.amount ?? userReceived?.amount ?? null;
 
@@ -46,11 +91,7 @@ export class SolanaPayClassifier implements Classifier {
       primaryAmount,
       secondaryAmount: null,
       counterparty: memo.merchant
-        ? {
-            address: "",
-            name: memo.merchant,
-            type: "merchant",
-          }
+        ? { address: "", name: memo.merchant, type: "merchant" }
         : null,
       confidence: 0.98,
       isRelevant: true,

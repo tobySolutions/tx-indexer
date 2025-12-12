@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { Transaction } from "@/lib/types";
 import { formatAddress } from "@/lib/utils";
 import { useState } from "react";
-import { Copy, Check, ArrowDown, ArrowUp, ArrowLeftRight, RefreshCw } from "lucide-react";
+import { Copy, Check, ArrowDown, ArrowUp, ArrowLeftRight, ArrowRight, RefreshCw } from "lucide-react";
 
 interface TransactionReceiptProps {
   transaction: Transaction;
@@ -47,7 +47,11 @@ export function TransactionReceipt({ transaction }: TransactionReceiptProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const getDirectionIcon = (direction: string) => {
+  const getDirectionIcon = (direction: string, primaryType: string) => {
+    if (primaryType === "transfer" && direction === "neutral") {
+      return <ArrowRight className="w-7 h-7 text-blue-600" />;
+    }
+
     switch (direction) {
       case "incoming":
         return <ArrowDown className="w-7 h-7 text-green-600" />;
@@ -84,7 +88,7 @@ export function TransactionReceipt({ transaction }: TransactionReceiptProps) {
         <div className="space-y-4">
           <div className="text-center flex flex-col items-center justify-center py-4">
             <div className="flex items-center justify-center gap-3 mb-1">
-              {getDirectionIcon(classification.direction)}
+              {getDirectionIcon(classification.direction, classification.primaryType)}
               <h3 className="text-3xl font-bold text-foreground">
                 {classification.primaryType
                   .replace(/_/g, " ")
@@ -93,19 +97,47 @@ export function TransactionReceipt({ transaction }: TransactionReceiptProps) {
                   .join(" ")}
               </h3>
             </div>
-            {classification.counterparty && (
-              <p className="text-muted-foreground">
-                {classification.direction === "incoming"
-                  ? "from"
-                  : classification.direction === "outgoing"
-                    ? "to"
-                    : classification.direction === "self"
-                      ? "to yourself"
-                      : "with"}{" "}
-                {classification.direction !== "self" &&
-                  (classification.counterparty.name ||
-                    formatAddress(classification.counterparty.address))}
-              </p>
+            {classification.primaryType === "transfer" &&
+            classification.direction === "neutral" &&
+            classification.metadata?.sender ? (
+              <div className="flex items-center justify-center gap-2 text-sm mt-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                  <span className="text-muted-foreground font-mono">
+                    {formatAddress(classification.metadata.sender as string)}
+                  </span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                <span className="font-semibold text-foreground">
+                  {formatAmount(
+                    classification.primaryAmount?.amountUi || 0,
+                    classification.primaryAmount?.token.symbol || ""
+                  )}{" "}
+                  {classification.primaryAmount?.token.symbol}
+                </span>
+                <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                  <span className="text-muted-foreground font-mono">
+                    {formatAddress(classification.counterparty?.address || "")}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              classification.counterparty && (
+                <p className="text-muted-foreground">
+                  {classification.direction === "incoming"
+                    ? "from"
+                    : classification.direction === "outgoing"
+                      ? "to"
+                      : classification.direction === "self"
+                        ? "to yourself"
+                        : "with"}{" "}
+                  {classification.direction !== "self" &&
+                    (classification.counterparty.name ||
+                      formatAddress(classification.counterparty.address))}
+                </p>
+              )
             )}
           </div>
 

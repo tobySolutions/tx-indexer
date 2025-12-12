@@ -151,7 +151,7 @@ export const mockTransactions = [
       err: null,
       programIds: ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"],
       protocol: null,
-      memo: "Thanks for the service! 🙏",
+      memo: "Thanks for the service!",
     },
     classification: {
       primaryType: "transfer" as const,
@@ -175,7 +175,7 @@ export const mockTransactions = [
       confidence: 0.95,
       isRelevant: true,
       metadata: {
-        memo: "Thanks for the service! 🙏",
+        memo: "Thanks for the service!",
       },
     },
     legs: [],

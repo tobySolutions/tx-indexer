@@ -11,13 +11,13 @@ export class FeeOnlyClassifier implements Classifier {
   classify(context: ClassifierContext): TransactionClassification | null {
     const { legs, walletAddress } = context;
 
-    const walletPrefix = `wallet:${walletAddress}`;
+    const isObserverMode = !walletAddress;
+    const accountPrefix = walletAddress ? `wallet:${walletAddress}` : "external:";
 
-    const userLegs = legs.filter((leg) => leg.accountId.includes(walletPrefix));
+    const participantLegs = legs.filter((leg) => leg.accountId.startsWith(accountPrefix));
+    const nonFeeParticipantLegs = participantLegs.filter((leg) => leg.role !== "fee");
 
-    const nonFeeUserLegs = userLegs.filter((leg) => leg.role !== "fee");
-
-    if (nonFeeUserLegs.length > 0) {
+    if (nonFeeParticipantLegs.length > 0) {
       return null;
     }
 
@@ -35,10 +35,11 @@ export class FeeOnlyClassifier implements Classifier {
       primaryAmount: totalFee?.amount ?? null,
       secondaryAmount: null,
       counterparty: null,
-      confidence: 0.95,
+      confidence: isObserverMode ? 0.9 : 0.95,
       isRelevant: false,
       metadata: {
         fee_type: "network",
+        ...(isObserverMode && { observer_mode: true }),
       },
     };
   }

@@ -1,4 +1,6 @@
+import type { Address } from "@solana/kit";
 import type { RawTransaction, TxLeg, TxLegRole } from "@tx-indexer/core/tx/tx.types";
+import type { ProtocolInfo } from "@tx-indexer/core/actors/counterparty.types";
 import { buildAccountId } from "@tx-indexer/core/tx/account-id";
 import {
   extractSolBalanceChanges,
@@ -8,6 +10,12 @@ import {
 } from "./balance-parser";
 import { KNOWN_TOKENS, TOKEN_INFO } from "@tx-indexer/core/money/token-registry";
 
+const DEX_PROTOCOL_IDS = new Set(["jupiter", "jupiter-v4", "raydium", "orca-whirlpool"]);
+
+function isDexProtocol(protocol: ProtocolInfo | null | undefined): boolean {
+  return protocol !== null && protocol !== undefined && DEX_PROTOCOL_IDS.has(protocol.id);
+}
+
 /**
  * Converts a raw Solana transaction into a double-entry accounting ledger.
  * 
@@ -16,14 +24,16 @@ import { KNOWN_TOKENS, TOKEN_INFO } from "@tx-indexer/core/money/token-registry"
  * for a specific account and token, enabling transaction classification and validation.
  * 
  * @param tx - Raw transaction data with balance changes
- * @param walletAddress - Address of the wallet to determine perspective (wallet vs external)
+ * @param walletAddress - Optional wallet address for perspective. When provided, legs are tagged
+ *   as "wallet:" or "external:". When omitted (observer mode), all legs are tagged as "external:".
  * @returns Array of transaction legs representing all balance movements
  */
 export function transactionToLegs(
   tx: RawTransaction,
-  walletAddress: string
+  walletAddress?: Address
 ): TxLeg[] {
   const legs: TxLeg[] = [];
+  const feePayer = tx.accountKeys?.[0]?.toLowerCase();
 
   const solChanges = extractSolBalanceChanges(tx);
   let totalSolDebits = 0n;
@@ -32,8 +42,9 @@ export function transactionToLegs(
   for (const change of solChanges) {
     if (change.change === 0n) continue;
 
-    const isWallet =
-      change.address.toLowerCase() === walletAddress.toLowerCase();
+    const isWallet = walletAddress
+      ? change.address.toLowerCase() === walletAddress.toLowerCase()
+      : false;
     const accountId = buildAccountId({
       type: isWallet ? "wallet" : "external",
       address: change.address,
@@ -83,20 +94,29 @@ export function transactionToLegs(
   for (const change of tokenChanges) {
     if (change.change.raw === "0") continue;
 
-    const isWallet =
-      change.owner?.toLowerCase() === walletAddress.toLowerCase();
+    const isWallet = walletAddress
+      ? change.owner?.toLowerCase() === walletAddress.toLowerCase()
+      : false;
+    const isFeePayer = !walletAddress && feePayer
+      ? change.owner?.toLowerCase() === feePayer
+      : false;
 
     let accountId: string;
-    if (isWallet) {
+    if (isWallet && walletAddress) {
       accountId = buildAccountId({
         type: "wallet",
         address: change.owner || walletAddress,
       });
-    } else if (tx.protocol) {
+    } else if (isFeePayer && feePayer) {
+      accountId = buildAccountId({
+        type: "external",
+        address: change.owner || feePayer,
+      });
+    } else if (isDexProtocol(tx.protocol)) {
       accountId = buildAccountId({
         type: "protocol",
         address: change.owner || change.tokenInfo.mint,
-        protocol: tx.protocol.id,
+        protocol: tx.protocol!.id,
         token: change.tokenInfo.symbol,
       });
     } else {
@@ -114,7 +134,7 @@ export function transactionToLegs(
         amountRaw: change.change.raw.replace("-", ""),
         amountUi: Math.abs(change.change.ui),
       },
-      role: determineTokenRole(change, walletAddress, tx),
+      role: determineTokenRole(change, walletAddress, tx, feePayer),
     });
   }
 
@@ -124,21 +144,19 @@ export function transactionToLegs(
 /**
  * Determines the role of a SOL balance change in the transaction context.
  * 
- * Distinguishes between fees, rewards, sent, and received based on the wallet
- * perspective, transaction protocol, and amount.
- * 
  * @param change - SOL balance change for an account
- * @param walletAddress - Address of the wallet for perspective
- * @param tx - Raw transaction for additional context (protocol, etc.)
+ * @param walletAddress - Optional wallet address for perspective
+ * @param tx - Raw transaction for additional context
  * @returns The role of this SOL balance change
  */
 function determineSolRole(
   change: SolBalanceChange,
-  walletAddress: string,
+  walletAddress: Address | undefined,
   tx: RawTransaction
 ): TxLegRole {
-  const isWallet =
-    change.address.toLowerCase() === walletAddress.toLowerCase();
+  const isWallet = walletAddress
+    ? change.address.toLowerCase() === walletAddress.toLowerCase()
+    : false;
   const isPositive = change.change > 0n;
   const amountSol = Math.abs(change.changeUi);
 
@@ -171,28 +189,31 @@ function determineSolRole(
 /**
  * Determines the role of a token balance change in the transaction context.
  * 
- * Differentiates between wallet movements (sent/received) and protocol interactions
- * (deposits/withdrawals) based on the owner and protocol context.
- * 
  * @param change - Token balance change for an account
- * @param walletAddress - Address of the wallet for perspective
+ * @param walletAddress - Optional wallet address for perspective
  * @param tx - Raw transaction for protocol context
+ * @param feePayer - Optional fee payer address for observer mode
  * @returns The role of this token balance change
  */
 function determineTokenRole(
   change: TokenBalanceChange,
-  walletAddress: string,
-  tx: RawTransaction
+  walletAddress: Address | undefined,
+  tx: RawTransaction,
+  feePayer?: string
 ): TxLegRole {
-  const isWallet =
-    change.owner?.toLowerCase() === walletAddress.toLowerCase();
+  const isWallet = walletAddress
+    ? change.owner?.toLowerCase() === walletAddress.toLowerCase()
+    : false;
+  const isFeePayer = !walletAddress && feePayer
+    ? change.owner?.toLowerCase() === feePayer
+    : false;
   const isPositive = change.change.ui > 0;
 
-  if (isWallet) {
+  if (isWallet || isFeePayer) {
     return isPositive ? "received" : "sent";
   }
 
-  if (tx.protocol) {
+  if (isDexProtocol(tx.protocol)) {
     return isPositive ? "protocol_withdraw" : "protocol_deposit";
   }
 

@@ -1,4 +1,5 @@
-import { createIndexer,  } from "tx-indexer";
+import { address } from "@solana/kit";
+import { createIndexer } from "tx-indexer";
 import { TRACKED_TOKENS } from "@tx-indexer/core/money/token-registry";
 import {
   getWalletTokenChanges,
@@ -7,26 +8,28 @@ import {
 import { validateLegsBalance } from "@tx-indexer/core/tx/leg-validation";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
-const WALLET_ADDRESS = process.env.WALLET_ADDRESS;
+const WALLET_ADDRESS_STRING = process.env.WALLET_ADDRESS;
 
 async function main() {
-  if (!WALLET_ADDRESS) {
+  if (!WALLET_ADDRESS_STRING) {
     console.error("Error: WALLET_ADDRESS environment variable is required");
     console.error("Usage: WALLET_ADDRESS=<address> bun apps/indexer/index.ts");
     process.exit(1);
   }
+
+  const walletAddress = address(WALLET_ADDRESS_STRING);
 
   console.log("TX Indexer\n");
   console.log("============================================\n");
 
   const indexer = createIndexer({ rpcUrl: RPC_URL });
 
-  const balance = await indexer.getBalance(WALLET_ADDRESS, TRACKED_TOKENS);
+  const balance = await indexer.getBalance(walletAddress, TRACKED_TOKENS);
 
   console.log("Current Balance");
   console.log("--------------------------------------------");
   console.log(
-    `Address: ${WALLET_ADDRESS.slice(0, 8)}...${WALLET_ADDRESS.slice(-8)}`
+    `Address: ${WALLET_ADDRESS_STRING.slice(0, 8)}...${WALLET_ADDRESS_STRING.slice(-8)}`
   );
   console.log(`SOL: ${balance.sol.ui.toFixed(9)}`);
 
@@ -38,7 +41,7 @@ async function main() {
   console.log("Recent Transactions");
   console.log("--------------------------------------------");
 
-  const filteredTransactions = await indexer.getTransactions(WALLET_ADDRESS, {
+  const filteredTransactions = await indexer.getTransactions(walletAddress, {
     limit: 10,
     filterSpam: true,
     spamConfig: {
@@ -69,8 +72,8 @@ async function main() {
     console.log(`   Protocol: ${protocolName}`);
     console.log(`   Time: ${date}`);
 
-    const solChange = getWalletSolChange(tx, WALLET_ADDRESS);
-    const tokenChanges = getWalletTokenChanges(tx, WALLET_ADDRESS, [
+    const solChange = getWalletSolChange(tx, walletAddress);
+    const tokenChanges = getWalletTokenChanges(tx, walletAddress, [
       ...TRACKED_TOKENS,
     ]);
 

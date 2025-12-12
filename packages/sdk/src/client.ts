@@ -1,7 +1,6 @@
 import type { Address, Signature } from "@solana/kit";
 import {
   createSolanaClient,
-  parseAddress,
   parseSignature,
   type SolanaClient,
 } from "@tx-indexer/solana/rpc/client";
@@ -82,116 +81,46 @@ export interface TxIndexer {
    * Fetches the SOL and SPL token balances for a wallet.
    * 
    * @param walletAddress - Wallet address to query balances for
-   * @param tokenMints - Optional array of token mint addresses to filter. If omitted, returns all tokens
+   * @param tokenMints - Optional array of token mint addresses to filter
    * @returns Wallet balance data including SOL and token balances
-   * 
-   * @example
-   * // Get all balances
-   * const balance = await indexer.getBalance("YourWalletAddress...");
-   * console.log(balance.sol.ui); // SOL balance
-   * console.log(balance.tokens); // All token balances
-   * 
-   * @example
-   * // Get specific token balances
-   * const balance = await indexer.getBalance(
-   *   "YourWalletAddress...",
-   *   ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"] // USDC
-   * );
    */
   getBalance(
-    walletAddress: string | Address,
+    walletAddress: Address,
     tokenMints?: readonly string[]
   ): Promise<WalletBalance>;
   
   /**
    * Fetches and classifies transaction history for a wallet.
    * 
-   * Retrieves transactions from the blockchain, detects protocols, classifies each transaction
-   * (transfer, swap, etc.), and optionally filters out spam. Returns transactions with full
-   * classification data including type, direction, amounts, and counterparty information.
-   * 
    * @param walletAddress - Wallet address to fetch transaction history for
    * @param options - Configuration options for fetching and filtering
-   * @param options.limit - Maximum number of transactions to return (default: 10)
-   * @param options.before - Fetch transactions before this signature (pagination)
-   * @param options.until - Fetch transactions until this signature (pagination)
-   * @param options.filterSpam - Whether to filter out spam transactions (default: true)
-   * @param options.spamConfig - Custom spam filter configuration
    * @returns Array of classified transactions with full metadata
-   * 
-   * @example
-   * // Get latest 10 transactions
-   * const txs = await indexer.getTransactions("YourWalletAddress...");
-   * 
-   * @example
-   * // Get 20 transactions including spam
-   * const txs = await indexer.getTransactions("YourWalletAddress...", {
-   *   limit: 20,
-   *   filterSpam: false
-   * });
-   * 
-   * @example
-   * // Pagination: get next page
-   * const nextPage = await indexer.getTransactions("YourWalletAddress...", {
-   *   before: lastTx.tx.signature,
-   *   limit: 10
-   * });
    */
   getTransactions(
-    walletAddress: string | Address,
+    walletAddress: Address,
     options?: GetTransactionsOptions
   ): Promise<ClassifiedTransaction[]>;
   
   /**
    * Fetches and classifies a single transaction by its signature.
    * 
-   * Retrieves the transaction from the blockchain, detects the protocol used, and classifies
-   * it from the perspective of the provided wallet address. Returns full classification including
-   * transaction type (swap, transfer, etc.), direction (incoming/outgoing), amounts, and counterparty.
-   * 
    * @param signature - Transaction signature to fetch
-   * @param walletAddress - Wallet address for classification context (determines perspective)
+   * @param walletAddress - Optional wallet address for classification perspective.
+   *   When omitted, returns classification from observer mode (neutral perspective).
    * @returns Classified transaction with full metadata, or null if transaction not found
-   * 
-   * @example
-   * const tx = await indexer.getTransaction(
-   *   "5k9XPH7FKz...", // Transaction signature
-   *   "YourWalletAddress..." // Your wallet for context
-   * );
-   * 
-   * if (tx) {
-   *   console.log(tx.classification.primaryType); // "swap", "transfer", etc.
-   *   console.log(tx.classification.direction); // "incoming", "outgoing", etc.
-   *   console.log(tx.classification.primaryAmount); // Amount data
-   * }
    */
   getTransaction(
-    signature: string | Signature,
-    walletAddress: string | Address
+    signature: Signature,
+    walletAddress?: Address
   ): Promise<ClassifiedTransaction | null>;
   
   /**
    * Fetches a raw transaction without classification.
    * 
-   * Retrieves the transaction data from the blockchain without any processing, classification,
-   * or protocol detection. Useful when you only need the raw blockchain data or want to implement
-   * custom classification logic.
-   * 
    * @param signature - Transaction signature to fetch
    * @returns Raw transaction data from the blockchain, or null if not found
-   * 
-   * @example
-   * const rawTx = await indexer.getRawTransaction("5k9XPH7FKz...");
-   * 
-   * if (rawTx) {
-   *   console.log(rawTx.slot); // Block slot
-   *   console.log(rawTx.blockTime); // Timestamp
-   *   console.log(rawTx.programIds); // Programs involved
-   * }
    */
-  getRawTransaction(
-    signature: string | Signature
-  ): Promise<RawTransaction | null>;
+  getRawTransaction(signature: Signature): Promise<RawTransaction | null>;
 }
 
 /**
@@ -220,84 +149,20 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
   return {
     rpc: client.rpc,
 
-    /**
-     * Fetches the SOL and SPL token balances for a wallet.
-     * 
-     * @param walletAddress - Wallet address to query balances for
-     * @param tokenMints - Optional array of token mint addresses to filter. If omitted, returns all tokens
-     * @returns Wallet balance data including SOL and token balances
-     * 
-     * @example
-     * // Get all balances
-     * const balance = await indexer.getBalance("YourWalletAddress...");
-     * console.log(balance.sol.ui); // SOL balance
-     * console.log(balance.tokens); // All token balances
-     * 
-     * @example
-     * // Get specific token balances
-     * const balance = await indexer.getBalance(
-     *   "YourWalletAddress...",
-     *   ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"] // USDC
-     * );
-     */
     async getBalance(
-      walletAddress: string | Address,
+      walletAddress: Address,
       tokenMints?: readonly string[]
     ): Promise<WalletBalance> {
-      const address =
-        typeof walletAddress === "string"
-          ? parseAddress(walletAddress)
-          : walletAddress;
-
-      return fetchWalletBalance(client.rpc, address, tokenMints);
+      return fetchWalletBalance(client.rpc, walletAddress, tokenMints);
     },
 
-    /**
-     * Fetches and classifies transaction history for a wallet.
-     * 
-     * Retrieves transactions from the blockchain, detects protocols, classifies each transaction
-     * (transfer, swap, etc.), and optionally filters out spam. Returns transactions with full
-     * classification data including type, direction, amounts, and counterparty information.
-     * 
-     * @param walletAddress - Wallet address to fetch transaction history for
-     * @param options - Configuration options for fetching and filtering
-     * @param options.limit - Maximum number of transactions to return (default: 10)
-     * @param options.before - Fetch transactions before this signature (pagination)
-     * @param options.until - Fetch transactions until this signature (pagination)
-     * @param options.filterSpam - Whether to filter out spam transactions (default: true)
-     * @param options.spamConfig - Custom spam filter configuration
-     * @returns Array of classified transactions with full metadata
-     * 
-     * @example
-     * // Get latest 10 transactions
-     * const txs = await indexer.getTransactions("YourWalletAddress...");
-     * 
-     * @example
-     * // Get 20 transactions including spam
-     * const txs = await indexer.getTransactions("YourWalletAddress...", {
-     *   limit: 20,
-     *   filterSpam: false
-     * });
-     * 
-     * @example
-     * // Pagination: get next page
-     * const nextPage = await indexer.getTransactions("YourWalletAddress...", {
-     *   before: lastTx.tx.signature,
-     *   limit: 10
-     * });
-     */
     async getTransactions(
-      walletAddress: string | Address,
+      walletAddress: Address,
       options: GetTransactionsOptions = {}
     ): Promise<ClassifiedTransaction[]> {
       const { limit = 10, before, until, filterSpam = true, spamConfig } = options;
 
-      const address =
-        typeof walletAddress === "string"
-          ? parseAddress(walletAddress)
-          : walletAddress;
-
-      const signatures = await fetchWalletSignatures(client.rpc, address, {
+      const signatures = await fetchWalletSignatures(client.rpc, walletAddress, {
         limit,
         before,
         until,
@@ -315,13 +180,10 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         signatureObjects
       );
 
-      const walletAddressString =
-        typeof walletAddress === "string" ? walletAddress : (walletAddress as unknown as string);
-
       const classified = transactions.map((tx) => {
         tx.protocol = detectProtocol(tx.programIds);
-        const legs = transactionToLegs(tx, walletAddressString);
-        const classification = classifyTransaction(legs, walletAddressString, tx);
+        const legs = transactionToLegs(tx, walletAddress);
+        const classification = classifyTransaction(legs, walletAddress, tx);
         return { tx, classification, legs };
       });
 
@@ -332,37 +194,11 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
       return classified;
     },
 
-    /**
-     * Fetches and classifies a single transaction by its signature.
-     * 
-     * Retrieves the transaction from the blockchain, detects the protocol used, and classifies
-     * it from the perspective of the provided wallet address. Returns full classification including
-     * transaction type (swap, transfer, etc.), direction (incoming/outgoing), amounts, and counterparty.
-     * 
-     * @param signature - Transaction signature to fetch
-     * @param walletAddress - Wallet address for classification context (determines perspective)
-     * @returns Classified transaction with full metadata, or null if transaction not found
-     * 
-     * @example
-     * const tx = await indexer.getTransaction(
-     *   "5k9XPH7FKz...", // Transaction signature
-     *   "YourWalletAddress..." // Your wallet for context
-     * );
-     * 
-     * if (tx) {
-     *   console.log(tx.classification.primaryType); // "swap", "transfer", etc.
-     *   console.log(tx.classification.direction); // "incoming", "outgoing", etc.
-     *   console.log(tx.classification.primaryAmount); // Amount data
-     * }
-     */
     async getTransaction(
-      signature: string | Signature,
-      walletAddress: string | Address
+      signature: Signature,
+      walletAddress?: Address
     ): Promise<ClassifiedTransaction | null> {
-      const sig =
-        typeof signature === "string" ? parseSignature(signature) : signature;
-
-      const tx = await fetchTransaction(client.rpc, sig);
+      const tx = await fetchTransaction(client.rpc, signature);
 
       if (!tx) {
         return null;
@@ -370,41 +206,14 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
 
       tx.protocol = detectProtocol(tx.programIds);
 
-      const walletAddressString =
-        typeof walletAddress === "string" ? walletAddress : (walletAddress as unknown as string);
-
-      const legs = transactionToLegs(tx, walletAddressString);
-      const classification = classifyTransaction(legs, walletAddressString, tx);
+      const legs = transactionToLegs(tx, walletAddress);
+      const classification = classifyTransaction(legs, walletAddress, tx);
 
       return { tx, classification, legs };
     },
 
-    /**
-     * Fetches a raw transaction without classification.
-     * 
-     * Retrieves the transaction data from the blockchain without any processing, classification,
-     * or protocol detection. Useful when you only need the raw blockchain data or want to implement
-     * custom classification logic.
-     * 
-     * @param signature - Transaction signature to fetch
-     * @returns Raw transaction data from the blockchain, or null if not found
-     * 
-     * @example
-     * const rawTx = await indexer.getRawTransaction("5k9XPH7FKz...");
-     * 
-     * if (rawTx) {
-     *   console.log(rawTx.slot); // Block slot
-     *   console.log(rawTx.blockTime); // Timestamp
-     *   console.log(rawTx.programIds); // Programs involved
-     * }
-     */
-    async getRawTransaction(
-      signature: string | Signature
-    ): Promise<RawTransaction | null> {
-      const sig =
-        typeof signature === "string" ? parseSignature(signature) : signature;
-
-      return fetchTransaction(client.rpc, sig);
+    async getRawTransaction(signature: Signature): Promise<RawTransaction | null> {
+      return fetchTransaction(client.rpc, signature);
     },
   };
 }

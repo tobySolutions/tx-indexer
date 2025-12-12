@@ -68,6 +68,23 @@ const PRIORITY_ORDER = [
   "system",
 ];
 
+const DEX_PROTOCOLS = new Set([
+  "jupiter",
+  "jupiter-v4",
+  "raydium",
+  "orca-whirlpool",
+]);
+
+/**
+ * Checks if a protocol is a DEX (decentralized exchange) that performs swaps.
+ * DEX protocols should have their legs tagged as "protocol:" with deposit/withdraw roles.
+ * Non-DEX protocols (like Associated Token Program) are infrastructure and should not
+ * affect leg tagging.
+ */
+export function isDexProtocol(protocol: ProtocolInfo | null): boolean {
+  return protocol !== null && DEX_PROTOCOLS.has(protocol.id);
+}
+
 /**
  * Detects the primary protocol used in a transaction based on its program IDs.
  * 

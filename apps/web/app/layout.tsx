@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { NoisyBackground } from "@/components/noisy-bg";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -26,6 +28,16 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <NoisyBackground />
+        <nav className="border-b border-gray-300 bg-white/80">
+          <div className="flex justify-between items-center p-4 max-w-7xl mx-auto">
+            <Link href="/" className="text-2xl font-bold">
+              itx
+            </Link>
+            <Button className="bg-vibrant-red text-white shadow-md hover:bg-vibrant-red/80 duration-400">
+              Connect Wallet
+            </Button>
+          </div>
+        </nav>
         {children}
       </body>
     </html>

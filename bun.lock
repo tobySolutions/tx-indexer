@@ -81,6 +81,7 @@
         "@radix-ui/react-slot": "^1.2.4",
         "@repo/ui": "*",
         "@solana/client": "^1.1.4",
+        "@solana/kit": "^5.0.0",
         "@solana/react-hooks": "^1.1.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -90,7 +91,7 @@
         "react-dom": "^19.2.0",
         "tailwind-merge": "^3.4.0",
         "tailwindcss-animate": "^1.0.7",
-        "tx-indexer": "workspace:*",
+        "tx-indexer": "^0.1.0",
       },
       "devDependencies": {
         "@repo/eslint-config": "*",
@@ -156,10 +157,6 @@
       "name": "tx-indexer",
       "version": "0.1.0",
       "dependencies": {
-        "@solana/kit": "^5.0.0",
-        "@tx-indexer/classification": "workspace:*",
-        "@tx-indexer/core": "workspace:*",
-        "@tx-indexer/solana": "workspace:*",
         "zod": "^4.1.13",
       },
       "devDependencies": {
@@ -173,6 +170,7 @@
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
+        "@solana/kit": "^5.0.0",
         "typescript": "^5",
       },
     },

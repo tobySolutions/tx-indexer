@@ -30,7 +30,7 @@ export default async function Page() {
             <span
               className={`${bitcountFont.className} text-3xl text-neutral-600`}
             >
-              // classify your transactions
+              {"//"} classify your transactions
             </span>
           </div>
           <InstallCommand />
@@ -53,7 +53,7 @@ export default async function Page() {
         <h2
           className={`${bitcountFont.className} text-center mx-auto text-3xl text-neutral-600 mb-10`}
         >
-          <span className="text-vibrant-red">//</span> receipt
+          <span className="text-vibrant-red">{"//"}</span> receipt
         </h2>
         <TransactionReceipt transaction={transaction!} />
       </div>

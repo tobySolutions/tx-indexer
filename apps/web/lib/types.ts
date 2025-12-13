@@ -5,8 +5,8 @@
 export interface Transaction {
   tx: {
     signature: string;
-    slot: bigint;
-    blockTime: bigint | null;
+    slot: number | bigint;
+    blockTime: number | bigint | null;
     err: any | null;
     programIds: string[];
     protocol: {

@@ -35,10 +35,11 @@ export function formatNumber(num: number, decimals: number = 2): string {
 
 /**
  * Format a timestamp to a readable date string
- * @param timestamp - Unix timestamp (in seconds or bigint)
- * @returns Formatted date like "Dec 11, 2025 3:30 PM"
+ * @param timestamp - Unix timestamp (in seconds or bigint), or null
+ * @returns Formatted date like "Dec 11, 2025 3:30 PM" or "—" if null
  */
-export function formatDate(timestamp: number | bigint): string {
+export function formatDate(timestamp: number | bigint | null): string {
+  if (!timestamp) return "—";
   const date = new Date(Number(timestamp) * 1000);
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -50,11 +51,42 @@ export function formatDate(timestamp: number | bigint): string {
 }
 
 /**
- * Format a relative time from now
- * @param timestamp - Unix timestamp (in seconds or bigint)
- * @returns Relative time like "2 hours ago"
+ * Format a timestamp to just the date (no time)
+ * @param timestamp - Unix timestamp (in seconds or bigint), or null
+ * @returns Formatted date like "Dec 11, 2025" or "—" if null
  */
-export function formatRelativeTime(timestamp: number | bigint): string {
+export function formatDateOnly(timestamp: number | bigint | null): string {
+  if (!timestamp) return "—";
+  const date = new Date(Number(timestamp) * 1000);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+/**
+ * Format a timestamp to just the time
+ * @param timestamp - Unix timestamp (in seconds or bigint), or null
+ * @returns Formatted time like "3:30 PM" or "" if null
+ */
+export function formatTime(timestamp: number | bigint | null): string {
+  if (!timestamp) return "";
+  const date = new Date(Number(timestamp) * 1000);
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
+/**
+ * Format a relative time from now
+ * @param timestamp - Unix timestamp (in seconds or bigint), or null
+ * @returns Relative time like "2 hours ago" or "—" if null
+ */
+export function formatRelativeTime(timestamp: number | bigint | null): string {
+  if (!timestamp) return "—";
   const date = new Date(Number(timestamp) * 1000);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();

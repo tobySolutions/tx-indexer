@@ -2,18 +2,16 @@
 
 import { TransactionTable } from "@/components/indexer/transaction-table";
 import { useWallet } from "@solana/react-hooks";
-import type { Transaction } from "@/lib/types";
-import { createIndexer } from "tx-indexer";
-import { useState, useEffect, useMemo } from "react";
+import type { ClassifiedTransaction } from "tx-indexer";
+import { useState, useEffect } from "react";
+import { indexer } from "@/lib/indexer";
 
 export function TransactionsSection() {
   const wallet = useWallet();
   const isConnected = wallet.status === "connected";
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<ClassifiedTransaction[]>([]);
 
   const address = isConnected ? wallet.session.account.address : null;
-
-  const indexer = createIndexer({ rpcUrl: process.env.RPC_URL! });
 
   useEffect(() => {
     if (!address) return;
@@ -30,7 +28,7 @@ export function TransactionsSection() {
 
   return (
     <section className="px-4 max-w-4xl mx-auto">
-      <TransactionTable transactions={transactions} title={`transactions`} />
+      <TransactionTable transactions={transactions} walletAddress={address} title={`transactions`} />
     </section>
   );
 }

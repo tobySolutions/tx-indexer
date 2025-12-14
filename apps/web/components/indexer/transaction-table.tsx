@@ -11,8 +11,9 @@ import {
   ArrowRight,
   Inbox,
 } from "lucide-react";
-import type { Transaction } from "@/lib/types";
+import type { ClassifiedTransaction } from "tx-indexer";
 import localFont from "next/font/local";
+import { formatRelativeTime } from "@/lib/utils";
 
 const bitcountFont = localFont({
   src: "../../app/fonts/Bitcount.ttf",
@@ -20,9 +21,10 @@ const bitcountFont = localFont({
 });
 
 interface TransactionTableProps {
-  transactions: Transaction[];
+  transactions: ClassifiedTransaction[];
   title: string;
   subtitle?: string;
+  walletAddress: string | null;
 }
 
 function getIcon(type: string, direction: string) {
@@ -69,11 +71,19 @@ function getIconBg(type: string) {
 }
 
 function formatAmountDisplay(
-  amount: {
-    token: { symbol: string; mint: string; name?: string; decimals: number };
-    amountUi: number;
-    amountRaw: string;
-  } | null | undefined
+  amount:
+    | {
+        token: {
+          symbol: string;
+          mint: string;
+          name?: string;
+          decimals: number;
+        };
+        amountUi: number;
+        amountRaw: string;
+      }
+    | null
+    | undefined
 ) {
   if (!amount) return "—";
 
@@ -97,31 +107,21 @@ function formatAmountDisplay(
   );
 }
 
-function formatTime(blockTime: number | bigint | null) {
-  if (!blockTime) return "—";
-  const date = new Date(Number(blockTime) * 1000);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export function TransactionTable({
   transactions,
   title,
   subtitle,
+  walletAddress,
 }: TransactionTableProps) {
   const router = useRouter();
+
+  const handleClick = (signature: string) => {
+    const url = walletAddress
+      ? `/indexer/${signature}?add=${walletAddress}`
+      : `/indexer/${signature}`;
+    router.push(url);
+  };
 
   if (transactions.length === 0) {
     return (
@@ -154,9 +154,7 @@ export function TransactionTable({
   return (
     <div className="w-full max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h2
-          className={`${bitcountFont.className} text-3xl text-neutral-600`}
-        >
+        <h2 className={`${bitcountFont.className} text-3xl text-neutral-600`}>
           <span className="text-vibrant-red">{"//"}</span> {title}
         </h2>
       </div>
@@ -186,12 +184,17 @@ export function TransactionTable({
               <tr
                 key={tx.tx.signature}
                 className="hover:bg-neutral-50 cursor-pointer transition-colors group"
-                onClick={() => router.push(`/indexer/${tx.tx.signature}`)}
+                onClick={() => handleClick(tx.tx.signature)}
               >
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${getIconBg(tx.classification.primaryType)}`}>
-                      {getIcon(tx.classification.primaryType, tx.classification.direction)}
+                    <div
+                      className={`p-2 rounded-lg ${getIconBg(tx.classification.primaryType)}`}
+                    >
+                      {getIcon(
+                        tx.classification.primaryType,
+                        tx.classification.direction
+                      )}
                     </div>
                     <div>
                       <p className="capitalize font-medium text-neutral-700">
@@ -212,7 +215,10 @@ export function TransactionTable({
                           {formatAmountDisplay(tx.classification.primaryAmount)}
                         </p>
                         <p className="text-sm text-neutral-400">
-                          → {formatAmountDisplay(tx.classification.secondaryAmount)}
+                          →{" "}
+                          {formatAmountDisplay(
+                            tx.classification.secondaryAmount
+                          )}
                         </p>
                       </>
                     ) : (
@@ -230,7 +236,9 @@ export function TransactionTable({
                 </td>
 
                 <td className="px-6 py-4">
-                  <span className="text-sm text-neutral-500">{formatTime(tx.tx.blockTime)}</span>
+                  <span className="text-sm text-neutral-500">
+                    {formatRelativeTime(tx.tx.blockTime)}
+                  </span>
                 </td>
 
                 <td className="px-6 py-4">
@@ -247,21 +255,30 @@ export function TransactionTable({
           <div
             key={tx.tx.signature}
             className="border border-neutral-200 rounded-lg p-4 bg-white hover:border-vibrant-red transition-colors cursor-pointer"
-            onClick={() => router.push(`/indexer/${tx.tx.signature}`)}
+            onClick={() => handleClick(tx.tx.signature)}
           >
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${getIconBg(tx.classification.primaryType)}`}>
-                  {getIcon(tx.classification.primaryType, tx.classification.direction)}
+                <div
+                  className={`p-2 rounded-lg ${getIconBg(tx.classification.primaryType)}`}
+                >
+                  {getIcon(
+                    tx.classification.primaryType,
+                    tx.classification.direction
+                  )}
                 </div>
                 <div>
                   <p className=" font-medium text-neutral-700">
                     {tx.classification.primaryType.replace("_", " ")}
                   </p>
-                  <p className="text-xs  text-neutral-400">{tx.classification.direction}</p>
+                  <p className="text-xs  text-neutral-400">
+                    {tx.classification.direction}
+                  </p>
                 </div>
               </div>
-              <span className="text-xs text-neutral-400">{formatTime(tx.tx.blockTime)}</span>
+              <span className="text-xs text-neutral-400">
+                {formatRelativeTime(tx.tx.blockTime)}
+              </span>
             </div>
 
             <div className="font-mono mb-2">

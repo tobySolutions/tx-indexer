@@ -56,7 +56,11 @@ export default async function Page() {
           >
             <span className="text-vibrant-red">{"//"}</span> receipt
           </h2>
-          <TransactionReceipt transaction={transaction} />
+          <TransactionReceipt 
+            transaction={transaction} 
+            showViewFullTransaction={true}
+            walletAddress={WALLET_ADDRESS.toString()}
+          />
         </div>
       )}
     </div>

@@ -15,6 +15,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"),
   title: "itx - Solana Transaction Classifier SDK",
   description:
     "A TypeScript SDK that transforms raw Solana transactions into human-readable financial data. Automatically classifies swaps, transfers, and payments with protocol detection and confidence scoring.",
@@ -58,7 +59,7 @@ export default function RootLayout({
         <Providers>
           <NoisyBackground />
 
-          <div className="fixed inset-0 pointer-events-none -z-10">
+          <div className="fixed inset-0 pointer-events-none -z-10" data-print-hide>
             <div className="absolute inset-0 bg-linear-to-br from-neutral-50/20 via-transparent to-neutral-100/20" />
 
             <div
@@ -77,7 +78,7 @@ export default function RootLayout({
 
           <main className="grow">{children}</main>
 
-          <footer className="border-t border-gray-300 bg-white/80 mt-20">
+          <footer className="border-t border-gray-300 bg-white/80 mt-20" data-print-hide>
             <div className="max-w-7xl mx-auto px-4 py-4">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <span className="text-sm text-neutral-600">

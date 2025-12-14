@@ -27,7 +27,8 @@ export async function generateMetadata({
     if (!transaction) {
       return {
         title: "Transaction Not Found",
-        description: "The transaction you're looking for doesn't exist or hasn't been indexed yet.",
+        description:
+          "The transaction you're looking for doesn't exist or hasn't been indexed yet.",
       };
     }
 
@@ -99,7 +100,8 @@ export default async function TransactionPage({
             Transaction Not Found
           </h1>
           <p className="text-neutral-600 mb-6">
-            The transaction you&apos;re looking for doesn&apos;t exist or hasn&apos;t been indexed yet.
+            The transaction you&apos;re looking for doesn&apos;t exist or
+            hasn&apos;t been indexed yet.
           </p>
           <Link
             href="/indexer"

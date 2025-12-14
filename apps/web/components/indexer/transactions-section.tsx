@@ -14,7 +14,7 @@ export function TransactionsSection() {
   const address = isConnected ? wallet.session.account.address : null;
 
   const indexer = useMemo(
-    () => createIndexer({ rpcUrl: process.env.RPC_URL! }),
+    () => createIndexer({ rpcUrl: process.env.NEXT_PUBLIC_RPC_URL! }),
     []
   );
   useEffect(() => {

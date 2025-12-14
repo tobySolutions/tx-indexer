@@ -19,7 +19,7 @@ export default async function Page() {
 
   try {
     const { getTransaction } = createIndexer({
-      rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || "https://api.mainnet-beta.solana.com",
+      rpcUrl: process.env.RPC_URL || "https://api.mainnet-beta.solana.com",
     });
 
     transaction = await getTransaction(TX_SIGNATURE, WALLET_ADDRESS);

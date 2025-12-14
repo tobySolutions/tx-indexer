@@ -28,7 +28,7 @@ export async function fetchWalletSignatures(
   walletAddress: Address,
   config: FetchTransactionsConfig = {}
 ): Promise<RawTransaction[]> {
-  const { limit = 1000, before, until } = config;
+  const { limit = 100, before, until } = config;
 
   const response = await rpc
     .getSignaturesForAddress(walletAddress, {

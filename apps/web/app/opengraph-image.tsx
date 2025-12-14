@@ -93,7 +93,7 @@ export default async function Image() {
                 color: "#ef4444",
               }}
             >
-              //
+              {"//"}
             </div>
             <div
               style={{

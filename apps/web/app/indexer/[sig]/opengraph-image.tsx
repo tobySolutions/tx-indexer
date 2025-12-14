@@ -34,15 +34,32 @@ export default async function Image({
             height: "100%",
             width: "100%",
             display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#fff",
-            fontSize: 32,
-            fontWeight: 600,
+            backgroundColor: "#fafafa",
+            padding: "10px",
           }}
         >
-          <div style={{ marginBottom: 20 }}>Transaction Not Found</div>
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              borderRadius: "32px",
+              backgroundColor: "#0a0a0a",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                fontSize: "48px",
+                fontWeight: "600",
+                color: "rgba(255, 255, 255, 0.9)",
+              }}
+            >
+              transaction not found
+            </div>
+          </div>
         </div>,
         { ...size }
       );
@@ -59,102 +76,111 @@ export default async function Image({
           height: "100%",
           width: "100%",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
           backgroundColor: "#fafafa",
-          padding: "60px",
+          padding: "10px",
         }}
       >
         <div
           style={{
+            width: "100%",
+            height: "100%",
             display: "flex",
             flexDirection: "column",
-            backgroundColor: "#fff",
-            borderRadius: "24px",
-            border: "2px solid #e5e5e5",
-            padding: "48px",
-            width: "100%",
-            maxWidth: "1000px",
+            borderRadius: "32px",
+            backgroundColor: "#0a0a0a",
+            position: "relative",
+            overflow: "hidden",
+            backgroundImage:
+              "radial-gradient(circle 600px at 105% -10%, rgba(239, 68, 68, 0.4) 0%, transparent 70%), radial-gradient(circle 500px at -5% 110%, rgba(239, 68, 68, 0.3) 0%, transparent 70%), linear-gradient(rgba(239, 68, 68, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(239, 68, 68, 0.03) 1px, transparent 1px)",
+            backgroundSize: "100% 100%, 100% 100%, 50px 50px, 50px 50px",
+            backgroundPosition: "0 0, 0 0, 0 0, 0 0",
           }}
         >
-          {/* Header */}
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "32px",
+              flexDirection: "column",
+              width: "100%",
+              height: "100%",
+              padding: "80px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <div
-                style={{
-                  fontSize: "48px",
-                  fontWeight: "bold",
-                  color: "#262626",
-                  textTransform: "capitalize",
-                }}
-              >
-                {classification.primaryType.replace("_", " ")}
-              </div>
-            </div>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "12px",
-              }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  borderRadius: "50%",
-                  backgroundColor: isSuccess ? "#16a34a" : "#dc2626",
-                }}
-              />
-              <div
-                style={{
-                  fontSize: "24px",
-                  fontWeight: "600",
-                  color: isSuccess ? "#16a34a" : "#dc2626",
-                }}
-              >
-                {isSuccess ? "Success" : "Failed"}
-              </div>
-            </div>
-          </div>
-
-          {/* Direction */}
-          <div
-            style={{
-              display: "flex",
-              fontSize: "20px",
-              color: "#737373",
-              textTransform: "capitalize",
-              marginBottom: "32px",
-            }}
-          >
-            {classification.direction}
-          </div>
-
-          {/* Amounts */}
-          {primaryAmount && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "16px",
-                marginBottom: "32px",
+                justifyContent: "space-between",
+                marginBottom: "48px",
               }}
             >
               <div
                 style={{
                   display: "flex",
-                  fontSize: "42px",
+                  alignItems: "center",
+                  gap: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: "64px",
+                    fontWeight: "bold",
+                    color: "#ef4444",
+                  }}
+                >
+                  {"//"}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: "48px",
+                    fontWeight: "bold",
+                    color: "white",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {classification.primaryType.replace("_", " ")}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  padding: "12px 24px",
+                  background: isSuccess
+                    ? "rgba(34, 197, 94, 0.15)"
+                    : "rgba(239, 68, 68, 0.15)",
+                  border: isSuccess
+                    ? "1px solid rgba(34, 197, 94, 0.3)"
+                    : "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "8px",
+                  fontSize: "20px",
+                  color: isSuccess
+                    ? "rgba(134, 239, 172, 0.9)"
+                    : "rgba(252, 165, 165, 0.9)",
+                  fontWeight: "600",
+                }}
+              >
+                {isSuccess ? "Success" : "Failed"}
+              </div>
+            </div>
+
+            {primaryAmount && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                  marginBottom: "32px",
+                }}
+              >
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: "56px",
                   fontWeight: "700",
-                  color: "#171717",
+                  color: "white",
+                  letterSpacing: "-0.02em",
                 }}
               >
                 {formatAmount(
@@ -163,71 +189,64 @@ export default async function Image({
                 )}{" "}
                 {primaryAmount.token.symbol}
               </div>
-              {secondaryAmount && (
+                {secondaryAmount && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "16px",
+                      fontSize: "32px",
+                      color: "rgba(255, 255, 255, 0.7)",
+                    }}
+                  >
+                    <div>→</div>
+                    <div>
+                      {formatAmount(
+                        secondaryAmount.amountUi,
+                        secondaryAmount.token.symbol
+                      )}{" "}
+                      {secondaryAmount.token.symbol}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              {tx.protocol && (
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: "12px",
-                    fontSize: "32px",
-                    color: "#525252",
+                    fontSize: "24px",
+                    color: "rgba(255, 255, 255, 0.7)",
                   }}
                 >
-                  <span>→</span>
-                  <span>
-                    {formatAmount(
-                      secondaryAmount.amountUi,
-                      secondaryAmount.token.symbol
-                    )}{" "}
-                    {secondaryAmount.token.symbol}
-                  </span>
+                  <div>via</div>
+                  <div style={{ color: "white", fontWeight: "600" }}>
+                    {tx.protocol.name}
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Protocol */}
-          {tx.protocol && (
-            <div
-              style={{
-                display: "flex",
-                fontSize: "20px",
-                color: "#737373",
-                marginBottom: "24px",
-              }}
-            >
-              Via: {tx.protocol.name}
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: "20px",
+                  color: "rgba(255, 255, 255, 0.5)",
+                }}
+              >
+                {formatDate(tx.blockTime)}
+              </div>
             </div>
-          )}
-
-          {/* Date */}
-          <div
-            style={{
-              display: "flex",
-              paddingTop: "24px",
-              borderTop: "1px solid #e5e5e5",
-              fontSize: "18px",
-              color: "#a3a3a3",
-            }}
-          >
-            {formatDate(tx.blockTime)}
           </div>
-        </div>
-
-        {/* Footer branding */}
-        <div
-          style={{
-            display: "flex",
-            marginTop: "32px",
-            fontSize: "24px",
-            color: "#737373",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <span style={{ fontWeight: "bold", color: "#171717" }}>itx</span>
-          <span style={{ color: "#ef4444" }}>//</span>
-          <span>transaction indexer</span>
         </div>
       </div>,
       { ...size }
@@ -240,15 +259,32 @@ export default async function Image({
           height: "100%",
           width: "100%",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#fff",
-          fontSize: 32,
-          fontWeight: 600,
+          backgroundColor: "#fafafa",
+          padding: "10px",
         }}
       >
-        <div>Error Loading Transaction</div>
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            borderRadius: "32px",
+            backgroundColor: "#0a0a0a",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              fontSize: "48px",
+              fontWeight: "600",
+              color: "rgba(255, 255, 255, 0.9)",
+            }}
+          >
+            error loading transaction
+          </div>
+        </div>
       </div>,
       { ...size }
     );

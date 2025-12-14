@@ -13,8 +13,6 @@ export function TransactionsSection() {
 
   const address = isConnected ? wallet.session.account.address : null;
 
-  console.log(process.env.RPC_URL);
-
   const indexer = useMemo(
     () => createIndexer({ rpcUrl: process.env.RPC_URL! }),
     []

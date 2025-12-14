@@ -88,6 +88,7 @@ export default async function Image() {
           >
             <div
               style={{
+                display: "flex",
                 fontSize: "72px",
                 fontWeight: "bold",
                 color: "#ef4444",
@@ -97,6 +98,7 @@ export default async function Image() {
             </div>
             <div
               style={{
+                display: "flex",
                 fontSize: "72px",
                 fontWeight: "bold",
                 color: "white",
@@ -117,6 +119,7 @@ export default async function Image() {
           >
             <div
               style={{
+                display: "flex",
                 fontSize: "56px",
                 fontWeight: "700",
                 lineHeight: 1.2,
@@ -137,6 +140,7 @@ export default async function Image() {
             >
               <div
                 style={{
+                  display: "flex",
                   padding: "12px 24px",
                   background: "rgba(239, 68, 68, 0.15)",
                   border: "1px solid rgba(239, 68, 68, 0.3)",
@@ -149,6 +153,7 @@ export default async function Image() {
               </div>
               <div
                 style={{
+                  display: "flex",
                   padding: "12px 24px",
                   background: "rgba(239, 68, 68, 0.15)",
                   border: "1px solid rgba(239, 68, 68, 0.3)",
@@ -161,6 +166,7 @@ export default async function Image() {
               </div>
               <div
                 style={{
+                  display: "flex",
                   padding: "12px 24px",
                   background: "rgba(239, 68, 68, 0.15)",
                   border: "1px solid rgba(239, 68, 68, 0.3)",
@@ -184,6 +190,7 @@ export default async function Image() {
           >
             <div
               style={{
+                display: "flex",
                 fontSize: "24px",
                 color: "rgba(255, 255, 255, 0.5)",
               }}

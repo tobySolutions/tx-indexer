@@ -174,21 +174,21 @@ export default async function Image({
                   marginBottom: "32px",
                 }}
               >
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: "56px",
-                  fontWeight: "700",
-                  color: "white",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {formatAmount(
-                  primaryAmount.amountUi,
-                  primaryAmount.token.symbol
-                )}{" "}
-                {primaryAmount.token.symbol}
-              </div>
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: "56px",
+                    fontWeight: "700",
+                    color: "white",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {formatAmount(
+                    primaryAmount.amountUi,
+                    primaryAmount.token.symbol
+                  )}{" "}
+                  {primaryAmount.token.symbol}
+                </div>
                 {secondaryAmount && (
                   <div
                     style={{
@@ -199,8 +199,8 @@ export default async function Image({
                       color: "rgba(255, 255, 255, 0.7)",
                     }}
                   >
-                    <div>→</div>
-                    <div>
+                    <div style={{ display: "flex" }}>→</div>
+                    <div style={{ display: "flex" }}>
                       {formatAmount(
                         secondaryAmount.amountUi,
                         secondaryAmount.token.symbol
@@ -229,8 +229,8 @@ export default async function Image({
                     color: "rgba(255, 255, 255, 0.7)",
                   }}
                 >
-                  <div>via</div>
-                  <div style={{ color: "white", fontWeight: "600" }}>
+                  <div style={{ display: "flex" }}>via</div>
+                  <div style={{ display: "flex", color: "white", fontWeight: "600" }}>
                     {tx.protocol.name}
                   </div>
                 </div>

@@ -26,8 +26,6 @@ export async function generateMetadata({
       };
     }
 
-    console.log(transaction)
-
     const { classification } = transaction;
     const primaryAmount = classification.primaryAmount;
     const secondaryAmount = classification.secondaryAmount;

@@ -28,8 +28,42 @@ const txs = await indexer.getTransactions("YourWalletAddress...", {
   filterSpam: true
 });
 
-// Get single transaction
-const tx = await indexer.getTransaction("signature...", "walletAddress...");
+// Get single transaction (no wallet required)
+const tx = await indexer.getTransaction("signature...");
+
+// Classification includes sender/receiver
+console.log(tx.classification.primaryType); // "transfer", "swap", "nft_mint", etc.
+console.log(tx.classification.sender);      // sender address
+console.log(tx.classification.receiver);    // receiver address
+```
+
+## Transaction Types
+
+- `transfer` - Wallet-to-wallet transfers
+- `swap` - Token exchanges (Jupiter, Raydium, Orca)
+- `nft_mint` - NFT minting (Metaplex, Candy Machine, Bubblegum)
+- `stake_deposit` - SOL staking deposits
+- `stake_withdraw` - SOL staking withdrawals
+- `bridge_in` - Receiving from bridge (Wormhole, deBridge, Allbridge)
+- `bridge_out` - Sending to bridge
+- `airdrop` - Token distributions
+- `fee_only` - Transactions with only network fees
+
+## Frontend Integration
+
+Classification is wallet-agnostic. Determine perspective in your frontend:
+
+```typescript
+const { classification } = await indexer.getTransaction(signature);
+const connectedWallet = wallet?.address;
+
+if (connectedWallet === classification.sender) {
+  // "You sent..."
+} else if (connectedWallet === classification.receiver) {
+  // "You received..."
+} else {
+  // "Address X sent to Address Y"
+}
 ```
 
 ## Bundle Size
@@ -78,4 +112,3 @@ bun run size:why
 ## License
 
 MIT
-

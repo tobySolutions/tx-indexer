@@ -43,7 +43,6 @@ export class ClassificationService {
 
     return {
       primaryType: "other",
-      direction: "neutral",
       primaryAmount: null,
       secondaryAmount: null,
       sender: null,

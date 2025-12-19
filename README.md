@@ -6,7 +6,7 @@ A Solana transaction indexer and classification SDK that transforms raw blockcha
 
 ## Overview
 
-TX Indexer is a TypeScript SDK for fetching, classifying, and understanding Solana transactions. It provides a high-level API that automatically categorizes transactions (swaps, transfers, airdrops, etc.) and detects the protocols involved.
+TX Indexer is a TypeScript SDK for fetching, classifying, and understanding Solana transactions. It provides a high-level API that automatically categorizes transactions (swaps, transfers, NFT mints, staking, bridges, etc.) and detects the protocols involved.
 
 The SDK transforms raw blockchain data through a three-layer architecture:
 
@@ -17,7 +17,8 @@ RawTransaction → TxLeg[] → TransactionClassification
 **Key capabilities:**
 - Fetch wallet balances and transaction history
 - Automatic transaction classification with confidence scoring
-- Protocol detection (Jupiter, Raydium, Orca, etc.)
+- Protocol detection (Jupiter, Raydium, Metaplex, Wormhole, etc.)
+- Pure on-chain classification (no wallet context required)
 - Double-entry accounting validation
 - Spam filtering
 - Type-safe with comprehensive JSDoc documentation
@@ -54,21 +55,20 @@ const transactions = await indexer.getTransactions("YourWalletAddress...", {
 for (const { tx, classification, legs } of transactions) {
   console.log(`${tx.signature.slice(0, 8)}...`);
   console.log(`  Type: ${classification.primaryType}`);
-  console.log(`  Direction: ${classification.direction}`);
-  console.log(`  Amount: ${classification.primaryAmount?.ui} ${classification.primaryAmount?.token}`);
+  console.log(`  From: ${classification.sender}`);
+  console.log(`  To: ${classification.receiver}`);
+  console.log(`  Amount: ${classification.primaryAmount?.amountUi} ${classification.primaryAmount?.token.symbol}`);
   console.log(`  Protocol: ${tx.protocol?.name || 'Unknown'}`);
 }
 
 // Get a single transaction with classification
-const result = await indexer.getTransaction(
-  "5k9XPH7FKz...", // transaction signature
-  "YourWalletAddress..." // wallet for classification context
-);
+const result = await indexer.getTransaction("5k9XPH7FKz...");
 
 if (result) {
   const { tx, classification, legs } = result;
   console.log(`Type: ${classification.primaryType}`);
-  console.log(`Direction: ${classification.direction}`);
+  console.log(`Sender: ${classification.sender}`);
+  console.log(`Receiver: ${classification.receiver}`);
   console.log(`Confidence: ${classification.confidence}`);
 }
 ```
@@ -107,7 +107,7 @@ Retrieves raw transaction data from Solana RPC including:
 Transforms balance changes into double-entry accounting legs:
 ```typescript
 {
-  accountId: "wallet:userAddress" | "protocol:jupiter:USDC:poolAddress" | "fee:network",
+  accountId: "external:userAddress" | "protocol:jupiter" | "fee:network",
   side: "debit" | "credit",
   amount: MoneyAmount,
   role: "sent" | "received" | "fee" | "protocol_deposit" | "protocol_withdraw"
@@ -117,13 +117,13 @@ All legs are validated to ensure debits equal credits.
 
 ### 3. Classification Layer
 Analyzes legs and transaction context to determine:
-- Transaction type (transfer, swap, airdrop, solana_pay, fee_only)
-- Direction from wallet's perspective (incoming, outgoing, neutral, self)
+- Transaction type (transfer, swap, nft_mint, stake_deposit, bridge_in, etc.)
+- Sender and receiver addresses
 - Primary and secondary amounts
 - Counterparty information
 - Confidence score (0.0 - 1.0)
 
-Priority-ordered classifiers run sequentially: Solana Pay (95) → Swap (80) → Airdrop (70) → Transfer (50) → Fee Only (60).
+Classification is purely on-chain data driven. The frontend determines incoming/outgoing perspective by comparing the connected wallet to `sender`/`receiver`.
 
 ## API Reference
 
@@ -187,15 +187,12 @@ const transactions = await indexer.getTransactions("YourWalletAddress...", {
 // Returns: Array<{ tx, classification, legs }>
 ```
 
-#### `getTransaction(signature, walletAddress)`
+#### `getTransaction(signature)`
 
-Fetches and classifies a single transaction from the wallet's perspective.
+Fetches and classifies a single transaction.
 
 ```typescript
-const result = await indexer.getTransaction(
-  "5k9XPH7FKz...",      // transaction signature
-  "YourWalletAddress..." // wallet for classification context
-);
+const result = await indexer.getTransaction("5k9XPH7FKz...");
 
 // Returns: { tx, classification, legs } | null
 ```
@@ -284,7 +281,7 @@ Raw transaction data from Solana RPC including balance changes, program IDs, and
   slot: number;
   blockTime: number;
   programIds: string[];
-  protocol: { name: "Jupiter", type: "dex" } | null;
+  protocol: { id: "jupiter", name: "Jupiter" } | null;
   preTokenBalances: TokenBalance[];
   postTokenBalances: TokenBalance[];
   memo?: string;  // Solana Pay support
@@ -297,7 +294,7 @@ Double-entry bookkeeping representation with structured account identifiers:
 
 ```typescript
 {
-  accountId: string;        // "wallet:addr", "protocol:jupiter:USDC:addr", "fee:network"
+  accountId: string;        // "external:addr", "protocol:jupiter", "fee:network"
   side: "debit" | "credit";
   amount: MoneyAmount;
   role: "sent" | "received" | "fee" | "protocol_deposit" | "protocol_withdraw";
@@ -307,24 +304,25 @@ Double-entry bookkeeping representation with structured account identifiers:
 **Example - Token Swap:**
 ```typescript
 [
-  { accountId: "wallet:user", side: "debit", amount: 100 USDC, role: "sent" },
-  { accountId: "protocol:jupiter:USDC", side: "credit", amount: 100 USDC, role: "protocol_deposit" },
-  { accountId: "protocol:jupiter:SOL", side: "debit", amount: 0.5 SOL, role: "protocol_withdraw" },
-  { accountId: "wallet:user", side: "credit", amount: 0.5 SOL, role: "received" },
+  { accountId: "external:user", side: "debit", amount: 100 USDC, role: "sent" },
+  { accountId: "protocol:jupiter", side: "credit", amount: 100 USDC, role: "protocol_deposit" },
+  { accountId: "protocol:jupiter", side: "debit", amount: 0.5 SOL, role: "protocol_withdraw" },
+  { accountId: "external:user", side: "credit", amount: 0.5 SOL, role: "received" },
   { accountId: "fee:network", side: "credit", amount: 0.000005 SOL, role: "fee" }
 ]
 ```
 
 ### 3. TransactionClassification (UX Layer)
 
-User-friendly categorization with confidence scoring:
+User-friendly categorization with sender/receiver identification:
 
 ```typescript
 {
-  primaryType: "transfer" | "swap" | "airdrop" | "fee_only";
-  direction: "incoming" | "outgoing" | "neutral";
-  primaryAmount: MoneyAmount;
+  primaryType: "transfer" | "swap" | "nft_mint" | "stake_deposit" | "stake_withdraw" | "bridge_in" | "bridge_out" | "airdrop" | "fee_only" | "other";
+  primaryAmount: MoneyAmount | null;
   secondaryAmount?: MoneyAmount;  // For swaps
+  sender: string | null;          // Address that sent
+  receiver: string | null;        // Address that received
   counterparty?: {
     name: string;
     address: string;
@@ -335,6 +333,8 @@ User-friendly categorization with confidence scoring:
   metadata: {
     payment_type?: "solana_pay";
     merchant?: string;
+    swap_type?: "token_to_token";
+    bridge_protocol?: string;
     // ... additional context
   }
 }
@@ -347,82 +347,42 @@ Automatic transaction categorization using priority-based classifiers:
 | Priority | Classifier | Detects |
 |----------|------------|---------|
 | 95 | Solana Pay | Payments with merchant metadata in memo |
+| 88 | Bridge | Cross-chain transfers (Wormhole, deBridge, Allbridge, DeGods Bridge) |
+| 85 | NFT Mint | NFT minting (Metaplex, Candy Machine, Bubblegum) |
+| 82 | Stake Deposit | SOL staking deposits (Native Stake, Stake Pools) |
+| 81 | Stake Withdraw | SOL staking withdrawals |
 | 80 | Swap | Token exchanges (Jupiter, Raydium, Orca) |
 | 70 | Airdrop | Token distributions (receive only) |
-| 50 | Transfer | Simple wallet-to-wallet transfers |
 | 60 | Fee Only | Transactions with only network fees |
+| 20 | Transfer | Simple wallet-to-wallet transfers |
 
 Classifiers run in priority order. The first match determines the transaction type.
 
-## Output Examples
+## Frontend Integration
 
-### Wallet Transaction History
+Since classification is wallet-agnostic, the frontend determines perspective:
 
-```
-TX Indexer
-============================================
+```typescript
+const { classification } = await indexer.getTransaction(signature);
+const connectedWallet = wallet?.address;
 
-Current Balance
---------------------------------------------
-Address: CmGgLQL3...PPhUWNqv
-SOL: 0.000000000
-USDC: 2.110000
-
-Recent Transactions
---------------------------------------------
-
-1. 56sXKPNAPSE...
-   Status: Success
-   Protocol: Associated Token Program
-   Time: 11/4/2025, 12:31:59 AM
-   Balance Changes:
-     USDC: +0.010000
-
-   Classification:
-     Type: airdrop
-     Direction: incoming
-     Amount: 0.010000 USDC
-     Confidence: 0.85
-     Relevant: Yes
-
-   Accounting: 5 legs (✓ balanced)
-```
-
-### Single Transaction Classification
-
-```
-Transaction: 32UwwoheTh3NUzdy...
-Status: Success
-Protocol: Token Program
-Time: 12/3/2025, 2:15:21 PM
-
-Memo: Order #67705369: 2:L:black:1
-
-Classification:
-  Type: transfer
-  Direction: incoming
-  Amount: 0.120000 USDC
-  Payment Type: Solana Pay
-  Payment Memo: Order #67705369: 2:L:black:1
-  Confidence: 0.98
-  Relevant: Yes
-
-Transaction Legs (4 total):
-  fee: -0.000005000 SOL
-    Account: external:Hb6dzd4p...
-  received: +0.120000 USDC
-    Account: wallet:CmGgLQL3...
-  protocol_deposit: -0.120000 USDC
-    Account: protocol:spl-token:USDC:Hb6dzd4p...
-
-✓ Legs are balanced
+// Determine user perspective
+if (connectedWallet === classification.sender) {
+  // "You sent 1.5 SOL to 8DEY..."
+} else if (connectedWallet === classification.receiver) {
+  // "You received 1.5 SOL from 2RtG..."
+} else {
+  // "2RtG... sent 1.5 SOL to 8DEY..."
+}
 ```
 
 ## Supported Protocols
 
 - **DEX:** Jupiter, Raydium, Orca Whirlpool
-- **NFT:** Metaplex
-- **Core:** Token Program, System Program, Associated Token Program, Stake Program
+- **NFT:** Metaplex, Candy Machine V3, Bubblegum (compressed NFTs)
+- **Staking:** Native Stake Program, Stake Pool Program
+- **Bridges:** Wormhole, deBridge, Allbridge, DeGods Bridge
+- **Core:** Token Program, System Program, Associated Token Program
 - **Payments:** Solana Pay (SPL Memo)
 
 ## Features
@@ -430,8 +390,8 @@ Transaction Legs (4 total):
 **Transaction Processing**
 - Smart memo decoding - Extracts human-readable text from program logs and binary data (UTF-8, JSON, base58, UUID)
 - Double-entry accounting - Validates all transactions balance (debits = credits)
-- Protocol detection - Identifies Jupiter, Raydium, Orca, and other major protocols
-- Automatic classification - Categorizes as transfer, swap, airdrop, or Solana Pay
+- Protocol detection - Identifies Jupiter, Raydium, Orca, Metaplex, Wormhole, and other major protocols
+- Automatic classification - Categorizes as transfer, swap, nft_mint, stake, bridge, airdrop, or Solana Pay
 - Facilitator detection - Identifies PayAI and other payment facilitators
 
 **SDK Capabilities**

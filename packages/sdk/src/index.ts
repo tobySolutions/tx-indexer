@@ -3,6 +3,7 @@ export {
   type TxIndexer,
   type TxIndexerOptions,
   type GetTransactionsOptions,
+  type GetTransactionOptions,
   type ClassifiedTransaction,
   type FetchTransactionsConfig,
 } from "./client";
@@ -85,3 +86,9 @@ export {
   SPL_MEMO_PROGRAM_ID,
   detectFacilitator,
 } from "@tx-indexer/solana/constants/program-ids";
+
+export {
+  fetchNftMetadata,
+  fetchNftMetadataBatch,
+  type NftMetadata,
+} from "./nft";

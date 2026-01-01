@@ -9,7 +9,6 @@ import {
   fetchWalletSignatures,
   fetchTransaction,
   fetchTransactionsBatch,
-  type FetchTransactionsConfig,
 } from "@tx-indexer/solana/fetcher/transactions";
 
 export type { FetchTransactionsConfig } from "@tx-indexer/solana/fetcher/transactions";
@@ -193,10 +192,11 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
           signatureObjects
         );
 
+        const walletAddressStr = walletAddress.toString();
         const classified = transactions.map((tx) => {
           tx.protocol = detectProtocol(tx.programIds);
           const legs = transactionToLegs(tx);
-          const classification = classifyTransaction(legs, tx);
+          const classification = classifyTransaction(legs, tx, walletAddressStr);
           return { tx, classification, legs };
         });
 
@@ -207,6 +207,7 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
       let currentBefore = before;
       const MAX_ITERATIONS = 10;
       let iteration = 0;
+      const walletAddressStr = walletAddress.toString();
 
       while (accumulated.length < limit && iteration < MAX_ITERATIONS) {
         iteration++;
@@ -234,7 +235,7 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         const classified = transactions.map((tx) => {
           tx.protocol = detectProtocol(tx.programIds);
           const legs = transactionToLegs(tx);
-          const classification = classifyTransaction(legs, tx);
+          const classification = classifyTransaction(legs, tx, walletAddressStr);
           return { tx, classification, legs };
         });
 

@@ -4,6 +4,7 @@ import type { TransactionClassification } from "@tx-indexer/core/tx/classificati
 export interface ClassifierContext {
   legs: TxLeg[];
   tx: RawTransaction;
+  walletAddress?: string;
 }
 
 export interface Classifier {

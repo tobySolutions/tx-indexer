@@ -10,7 +10,7 @@ export class SwapClassifier implements Classifier {
   priority = 80;
 
   classify(context: ClassifierContext): TransactionClassification | null {
-    const { legs, tx } = context;
+    const { legs, tx, walletAddress } = context;
 
     const feeLeg = legs.find(
       (leg) => leg.role === "fee" && leg.side === "debit"
@@ -23,29 +23,57 @@ export class SwapClassifier implements Classifier {
 
     const initiatorAccountId = `external:${initiator}`;
 
-    const tokensOut = legs.filter(
+    const initiatorTokensOut = legs.filter(
       (leg) =>
         leg.accountId === initiatorAccountId &&
         leg.side === "debit" &&
         (leg.role === "sent" || leg.role === "protocol_deposit")
     );
 
-    const tokensIn = legs.filter(
+    const initiatorTokensIn = legs.filter(
       (leg) =>
         leg.accountId === initiatorAccountId &&
         leg.side === "credit" &&
         (leg.role === "received" || leg.role === "protocol_withdraw")
     );
 
-    if (tokensOut.length === 0 || tokensIn.length === 0) {
+    if (initiatorTokensOut.length === 0 || initiatorTokensIn.length === 0) {
       return null;
     }
 
-    const tokenOut = tokensOut[0]!;
-    const tokenIn = tokensIn[0]!;
+    const initiatorOut = initiatorTokensOut[0]!;
+    const initiatorIn = initiatorTokensIn[0]!;
 
-    if (tokenOut.amount.token.symbol === tokenIn.amount.token.symbol) {
+    if (initiatorOut.amount.token.symbol === initiatorIn.amount.token.symbol) {
       return null;
+    }
+
+    let tokenOut = initiatorOut;
+    let tokenIn = initiatorIn;
+    let perspectiveWallet = initiator;
+
+    if (walletAddress) {
+      const walletAccountId = `external:${walletAddress}`;
+      
+      const walletOut = legs.find(
+        (leg) =>
+          leg.accountId === walletAccountId &&
+          leg.side === "debit" &&
+          (leg.role === "sent" || leg.role === "protocol_deposit")
+      );
+
+      const walletIn = legs.find(
+        (leg) =>
+          leg.accountId === walletAccountId &&
+          leg.side === "credit" &&
+          (leg.role === "received" || leg.role === "protocol_withdraw")
+      );
+
+      if (walletOut && walletIn && walletOut.amount.token.symbol !== walletIn.amount.token.symbol) {
+        tokenOut = walletOut;
+        tokenIn = walletIn;
+        perspectiveWallet = walletAddress;
+      }
     }
 
     const hasDexProtocol = isDexProtocolById(tx.protocol?.id);
@@ -55,8 +83,8 @@ export class SwapClassifier implements Classifier {
       primaryType: "swap",
       primaryAmount: tokenOut.amount,
       secondaryAmount: tokenIn.amount,
-      sender: initiator,
-      receiver: initiator,
+      sender: perspectiveWallet,
+      receiver: perspectiveWallet,
       counterparty: null,
       confidence,
       isRelevant: true,

@@ -31,8 +31,8 @@ export class ClassificationService {
     this.classifiers.sort((a, b) => b.priority - a.priority);
   }
 
-  classify(legs: TxLeg[], tx: RawTransaction): TransactionClassification {
-    const context: ClassifierContext = { legs, tx };
+  classify(legs: TxLeg[], tx: RawTransaction, walletAddress?: string): TransactionClassification {
+    const context: ClassifierContext = { legs, tx, walletAddress };
 
     for (const classifier of this.classifiers) {
       const result = classifier.classify(context);
@@ -63,16 +63,15 @@ export const classificationService = new ClassificationService();
  * Uses a priority-ordered chain of classifiers (Solana Pay > Bridge > NFT Mint > Stake Deposit > Stake Withdraw > Swap > Airdrop > Transfer > Fee-only)
  * to determine the transaction type, direction, amounts, sender, and receiver.
  *
- * Direction is always from the initiator's (fee payer's) perspective.
- * Frontend should compare connected wallet to sender/receiver for user perspective.
- *
  * @param legs - Transaction legs representing all balance movements
  * @param tx - Raw transaction data for additional context (protocol, memo, etc.)
+ * @param walletAddress - Optional wallet address for perspective-aware classification (e.g., swap direction)
  * @returns Classification result with type, amounts, sender, receiver, and confidence
  */
 export function classifyTransaction(
   legs: TxLeg[],
-  tx: RawTransaction
+  tx: RawTransaction,
+  walletAddress?: string
 ): TransactionClassification {
-  return classificationService.classify(legs, tx);
+  return classificationService.classify(legs, tx, walletAddress);
 }

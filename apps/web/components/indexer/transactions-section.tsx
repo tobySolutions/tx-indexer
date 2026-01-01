@@ -28,7 +28,11 @@ export function TransactionsSection() {
 
   return (
     <section className="px-4 max-w-4xl mx-auto">
-      <TransactionTable transactions={transactions} walletAddress={address} title={`transactions`} />
+      <TransactionTable
+        transactions={transactions}
+        walletAddress={address}
+        title={`transactions`}
+      />
     </section>
   );
 }

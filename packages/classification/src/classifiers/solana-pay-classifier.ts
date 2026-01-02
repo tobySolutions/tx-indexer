@@ -64,7 +64,7 @@ export class SolanaPayClassifier implements Classifier {
 
     const memo = parseSolanaPayMemo(tx.memo!);
 
-    const pair = findBestTransferPair(legs);
+      const pair = findBestTransferPair(legs);
 
     const senderLeg = pair?.senderLeg ?? null;
     const receiverLeg = pair?.receiverLeg ?? null;

@@ -1,6 +1,6 @@
 import localFont from "next/font/local";
-import { Search } from "lucide-react";
 import { TransactionsSection } from "@/components/indexer/transactions-section";
+import { SearchCommand } from "@/components/indexer/search-command";
 
 const bitcountFont = localFont({
   src: "../fonts/Bitcount.ttf",
@@ -20,16 +20,7 @@ export default async function IndexerPage() {
           explore solana transactions
         </p>
 
-        <div className="relative max-w-2xl mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 h-5 w-5" />
-          <input
-            type="text"
-            placeholder="search transaction or wallet..."
-            className="w-full lowercase pl-12 pr-4 py-4 rounded-2xl border-2 border-neutral-200 
-                   focus:border-vibrant-red focus:outline-none transition-colors
-                   bg-white"
-          />
-        </div>
+        <SearchCommand />
       </section>
 
       <TransactionsSection />

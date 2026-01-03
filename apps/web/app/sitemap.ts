@@ -1,7 +1,6 @@
 import { MetadataRoute } from "next";
 
-const baseUrl =
-  process.env.NEXT_PUBLIC_BASE_URL || "https://itx-indexer.com";
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://itx-indexer.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -25,4 +24,3 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 }
-

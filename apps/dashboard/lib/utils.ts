@@ -37,3 +37,23 @@ export function formatRelativeTime(timestamp: number | bigint | null): string {
     year: "numeric",
   }).format(date);
 }
+
+export function formatDateOnly(timestamp: number | bigint | null): string {
+  if (!timestamp) return "—";
+  const date = new Date(Number(timestamp) * 1000);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+export function formatTime(timestamp: number | bigint | null): string {
+  if (!timestamp) return "—";
+  const date = new Date(Number(timestamp) * 1000);
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}

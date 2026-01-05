@@ -1,28 +1,58 @@
 "use client";
 
 import { useWallet } from "@solana/react-hooks";
-import type { ClassifiedTransaction, WalletBalance } from "tx-indexer";
+import type { ClassifiedTransaction } from "tx-indexer";
 import { useState, useEffect, useTransition } from "react";
-import { getDashboardData } from "@/app/actions/dashboard";
-import { formatNumber, formatRelativeTime, truncate } from "@/lib/utils";
+import {
+  getDashboardData,
+  type PortfolioSummary,
+} from "@/app/actions/dashboard";
+import {
+  formatRelativeTime,
+  formatDateOnly,
+  formatTime,
+  truncate,
+  cn,
+} from "@/lib/utils";
+import {
+  getTransactionDirection,
+  formatAmountWithDirection,
+  formatSwapDetails,
+} from "@/lib/transaction-utils";
+import { CopyButton } from "@/components/copy-button";
+import { PortfolioActions } from "@/components/portfolio-actions";
 import {
   ArrowLeftRight,
   ArrowRight,
+  ArrowUpRight,
+  ArrowDownLeft,
   Gift,
   Sparkles,
   Circle,
   Inbox,
   Wallet,
+  ChevronDown,
+  ExternalLink,
 } from "lucide-react";
 import localFont from "next/font/local";
+import Link from "next/link";
+import Image from "next/image";
 
 const bitcountFont = localFont({
   src: "../app/fonts/Bitcount.ttf",
   variable: "--font-bitcount",
 });
 
-function getIcon(type: string) {
+function getIcon(type: string, direction: string) {
   const className = "h-4 w-4";
+
+  if (direction === "incoming") {
+    return <ArrowDownLeft className={className} />;
+  }
+  if (direction === "outgoing") {
+    return <ArrowUpRight className={className} />;
+  }
+
   switch (type) {
     case "swap":
       return <ArrowLeftRight className={className} />;
@@ -37,53 +67,273 @@ function getIcon(type: string) {
   }
 }
 
-function formatAmount(
-  amount:
-    | {
-        token: {
-          symbol: string;
-          mint: string;
-          name?: string;
-          decimals: number;
-        };
-        amountUi: number;
-        amountRaw: string;
-      }
-    | null
-    | undefined,
-) {
-  if (!amount) return "—";
-  return `${amount.amountUi.toLocaleString()} ${amount.token.symbol}`;
+function getIconBgClass(direction: string) {
+  switch (direction) {
+    case "incoming":
+      return "bg-green-50 text-green-600";
+    case "outgoing":
+      return "bg-red-50 text-red-600";
+    default:
+      return "bg-neutral-100 text-neutral-600";
+  }
 }
 
-function BalanceCard({
-  balance,
+function formatUsd(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function PortfolioCard({
+  portfolio,
+  walletAddress,
 }: {
-  balance: WalletBalance | null;
-  isPending: boolean;
+  portfolio: PortfolioSummary | null;
+  walletAddress: string | null;
 }) {
-  const solBalance = balance?.sol.ui ?? 0;
+  const total = portfolio?.totalUsd ?? 0;
+  const stablecoins = portfolio?.stablecoinsUsd ?? 0;
+  const variable = portfolio?.variableAssetsUsd ?? 0;
+  const unpriced = portfolio?.unpricedCount ?? 0;
 
   return (
     <div className="border border-neutral-200 rounded-lg bg-white p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 rounded-lg bg-neutral-100">
-          <Wallet className="h-5 w-5 text-neutral-600" />
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-neutral-100">
+            <Wallet className="h-5 w-5 text-neutral-600" />
+          </div>
+          <span className="text-neutral-500">portfolio</span>
+          {walletAddress && (
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-neutral-400 font-mono">
+                {truncate(walletAddress)}
+              </span>
+              <CopyButton value={walletAddress} />
+            </div>
+          )}
         </div>
-        <span className="text-neutral-500">wallet balance</span>
+        <PortfolioActions />
       </div>
-      <p className="text-3xl font-mono text-neutral-900">
-        {formatNumber(solBalance, 4)}{" "}
-        <span className="text-neutral-500 text-xl">SOL</span>
+      <p className="text-3xl font-mono text-neutral-900 mb-2">
+        {formatUsd(total)}
       </p>
+      <p className="text-sm text-neutral-500">
+        stablecoins {formatUsd(stablecoins)} · variable assets{" "}
+        {formatUsd(variable)}
+        {unpriced > 0 && (
+          <span className="text-neutral-400"> · +{unpriced} unpriced</span>
+        )}
+      </p>
+    </div>
+  );
+}
+
+function TransactionRow({
+  transaction,
+  walletAddress,
+}: {
+  transaction: ClassifiedTransaction;
+  walletAddress: string;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const direction = getTransactionDirection(transaction, walletAddress);
+  const { tx, classification } = transaction;
+
+  const isSuccess = tx.err === null;
+  const isSwap = classification.primaryType === "swap";
+  const isNft = ["nft_purchase", "nft_sale", "nft_mint"].includes(
+    classification.primaryType,
+  );
+  const nftMetadata = classification.metadata as
+    | { nft_name?: string; nft_image?: string }
+    | undefined;
+  const fee = tx.fee ? tx.fee / 1e9 : 0;
+
+  return (
+    <div className="border-b border-neutral-100 last:border-b-0">
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-4 hover:bg-neutral-50 transition-colors text-left"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                "p-2 rounded-lg",
+                getIconBgClass(direction.direction),
+              )}
+            >
+              {getIcon(classification.primaryType, direction.direction)}
+            </div>
+            <div>
+              <p className="font-medium text-neutral-700 capitalize">
+                {direction.label}
+              </p>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-neutral-400 font-mono">
+                  {truncate(tx.signature)}
+                </span>
+                <CopyButton value={tx.signature} />
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className={cn("font-mono", direction.colorClass)}>
+                {formatAmountWithDirection(
+                  classification.primaryAmount,
+                  direction,
+                )}
+              </p>
+              <p className="text-sm text-neutral-400">
+                {formatRelativeTime(tx.blockTime)}
+              </p>
+            </div>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-neutral-400 transition-transform duration-200",
+                isExpanded && "rotate-180",
+              )}
+            />
+          </div>
+        </div>
+      </button>
+
+      <div
+        className={cn(
+          "grid transition-all duration-200 ease-out",
+          isExpanded
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4 pt-0">
+            <div className="bg-neutral-50 rounded-lg p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "text-xs font-medium px-2 py-1 rounded",
+                    isSuccess
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700",
+                  )}
+                >
+                  {isSuccess ? "success" : "failed"}
+                </span>
+              </div>
+
+              {isSwap && (
+                <div>
+                  <p className="text-xs text-neutral-500 mb-1">trade details</p>
+                  <p className="font-mono text-neutral-600 bg-white border rounded-lg w-fit px-3 py-1 text-xl">
+                    {formatSwapDetails(
+                      classification.primaryAmount,
+                      classification.secondaryAmount,
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {isNft && nftMetadata?.nft_name && (
+                <div>
+                  <p className="text-xs text-neutral-500 mb-1">nft</p>
+                  <div className="flex items-center gap-3">
+                    {nftMetadata.nft_image && (
+                      <Image
+                        src={nftMetadata.nft_image}
+                        alt={nftMetadata.nft_name}
+                        width={48}
+                        height={48}
+                        className="rounded-lg object-cover"
+                        unoptimized
+                      />
+                    )}
+                    <p className="text-sm font-medium">
+                      {nftMetadata.nft_name}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {classification.sender && (
+                  <div>
+                    <p className="text-xs text-neutral-500 mb-1">from</p>
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-sm">
+                        {truncate(classification.sender)}
+                      </span>
+                      <CopyButton value={classification.sender} />
+                    </div>
+                  </div>
+                )}
+
+                {classification.receiver && (
+                  <div>
+                    <p className="text-xs text-neutral-500 mb-1">to</p>
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-sm">
+                        {truncate(classification.receiver)}
+                      </span>
+                      <CopyButton value={classification.receiver} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {tx.memo && (
+                <div>
+                  <p className="text-xs text-neutral-500 mb-1">memo</p>
+                  <p className="text-sm bg-white rounded p-2 border border-neutral-200">
+                    {tx.memo}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 gap-4 pt-2 border-t border-neutral-200">
+                <div>
+                  <p className="text-xs text-neutral-500 mb-1">date</p>
+                  <p className="text-sm">{formatDateOnly(tx.blockTime)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-500 mb-1">time</p>
+                  <p className="text-sm">{formatTime(tx.blockTime)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-500 mb-1">fee</p>
+                  <p className="text-sm font-mono">{fee.toFixed(6)} SOL</p>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Link
+                  href={`/transaction/${tx.signature}`}
+                  className="inline-flex items-center gap-1 text-sm text-vibrant-red hover:underline"
+                >
+                  view full details
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function TransactionsList({
   transactions,
+  walletAddress,
 }: {
   transactions: ClassifiedTransaction[];
+  walletAddress: string;
 }) {
   if (transactions.length === 0) {
     return (
@@ -101,38 +351,13 @@ function TransactionsList({
 
   return (
     <div className="border border-neutral-200 rounded-lg bg-white overflow-hidden">
-      <div className="divide-y divide-neutral-100">
-        {transactions.map((tx) => (
-          <div
-            key={tx.tx.signature}
-            className="p-4 hover:bg-neutral-50 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-neutral-100 text-neutral-600">
-                  {getIcon(tx.classification.primaryType)}
-                </div>
-                <div>
-                  <p className="font-medium text-neutral-700 capitalize">
-                    {tx.classification.primaryType.replace("_", " ")}
-                  </p>
-                  <p className="text-sm text-neutral-400 font-mono">
-                    {truncate(tx.tx.signature)}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-mono text-neutral-700">
-                  {formatAmount(tx.classification.primaryAmount)}
-                </p>
-                <p className="text-sm text-neutral-400">
-                  {formatRelativeTime(tx.tx.blockTime)}
-                </p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {transactions.map((tx) => (
+        <TransactionRow
+          key={tx.tx.signature}
+          transaction={tx}
+          walletAddress={walletAddress}
+        />
+      ))}
     </div>
   );
 }
@@ -140,7 +365,7 @@ function TransactionsList({
 export function DashboardContent() {
   const wallet = useWallet();
   const isConnected = wallet.status === "connected";
-  const [balance, setBalance] = useState<WalletBalance | null>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [transactions, setTransactions] = useState<ClassifiedTransaction[]>([]);
   const [isPending, startTransition] = useTransition();
 
@@ -150,14 +375,14 @@ export function DashboardContent() {
 
   useEffect(() => {
     if (!address) {
-      setBalance(null);
+      setPortfolio(null);
       setTransactions([]);
       return;
     }
 
     startTransition(async () => {
       const data = await getDashboardData(address, 10);
-      setBalance(data.balance);
+      setPortfolio(data.portfolio);
       setTransactions(data.transactions);
     });
   }, [address]);
@@ -171,7 +396,7 @@ export function DashboardContent() {
               <div className="p-2 rounded-lg bg-neutral-100">
                 <Wallet className="h-5 w-5 text-neutral-400" />
               </div>
-              <span className="text-neutral-500">wallet balance</span>
+              <span className="text-neutral-500">portfolio</span>
             </div>
             <p className="text-2xl font-mono text-neutral-300">—</p>
           </div>
@@ -206,7 +431,7 @@ export function DashboardContent() {
               <div className="p-2 rounded-lg bg-neutral-100">
                 <Wallet className="h-5 w-5 text-neutral-600" />
               </div>
-              <span className="text-neutral-500">wallet balance</span>
+              <span className="text-neutral-500">portfolio</span>
             </div>
             <p className="text-2xl font-mono text-neutral-400">loading...</p>
           </div>
@@ -229,7 +454,7 @@ export function DashboardContent() {
   return (
     <main className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <BalanceCard balance={balance} isPending={isPending} />
+        <PortfolioCard portfolio={portfolio} walletAddress={address} />
       </div>
 
       <div>
@@ -238,7 +463,10 @@ export function DashboardContent() {
         >
           <span className="text-vibrant-red">{"//"}</span> recent transactions
         </h2>
-        <TransactionsList transactions={transactions} />
+        <TransactionsList
+          transactions={transactions}
+          walletAddress={address!}
+        />
       </div>
     </main>
   );

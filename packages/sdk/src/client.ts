@@ -455,7 +455,11 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
           return { tx, classification, legs };
         });
 
-        const nonSpam = filterSpamTransactions(classified, spamConfig);
+        const nonSpam = filterSpamTransactions(
+          classified,
+          spamConfig,
+          walletAddressStr,
+        );
         accumulated.push(...nonSpam);
 
         const lastSignature = signatures[signatures.length - 1];

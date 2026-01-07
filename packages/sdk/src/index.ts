@@ -104,3 +104,19 @@ export {
   fetchNftMetadataBatch,
   type NftMetadata,
 } from "./nft";
+
+// JSON-safe serialization types and helpers
+export {
+  toJsonClassifiedTransaction,
+  toJsonClassifiedTransactions,
+  type JsonTokenInfo,
+  type JsonFiatValue,
+  type JsonMoneyAmount,
+  type JsonTokenBalance,
+  type JsonProtocolInfo,
+  type JsonRawTransaction,
+  type JsonCounterparty,
+  type JsonTransactionClassification,
+  type JsonTxLeg,
+  type JsonClassifiedTransaction,
+} from "./json-types";

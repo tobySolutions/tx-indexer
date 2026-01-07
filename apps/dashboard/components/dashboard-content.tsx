@@ -21,6 +21,7 @@ import {
 } from "@/lib/transaction-utils";
 import { CopyButton } from "@/components/copy-button";
 import { PortfolioActions } from "@/components/portfolio-actions";
+import { SendTransferDrawer } from "@/components/send-transfer-drawer";
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -90,9 +91,11 @@ function formatUsd(value: number): string {
 function PortfolioCard({
   portfolio,
   walletAddress,
+  onSend,
 }: {
   portfolio: PortfolioSummary | null;
   walletAddress: string | null;
+  onSend?: () => void;
 }) {
   const total = portfolio?.totalUsd ?? 0;
   const stablecoins = portfolio?.stablecoinsUsd ?? 0;
@@ -116,7 +119,7 @@ function PortfolioCard({
             </div>
           )}
         </div>
-        <PortfolioActions />
+        <PortfolioActions onSend={onSend} />
       </div>
       <p className="text-3xl font-mono text-neutral-900 mb-2">
         {formatUsd(total)}
@@ -368,6 +371,7 @@ export function DashboardContent() {
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [transactions, setTransactions] = useState<ClassifiedTransaction[]>([]);
   const [isPending, startTransition] = useTransition();
+  const [sendDrawerOpen, setSendDrawerOpen] = useState(false);
 
   const address = isConnected
     ? wallet.session.account.address.toString()
@@ -454,7 +458,11 @@ export function DashboardContent() {
   return (
     <main className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <PortfolioCard portfolio={portfolio} walletAddress={address} />
+        <PortfolioCard
+          portfolio={portfolio}
+          walletAddress={address}
+          onSend={() => setSendDrawerOpen(true)}
+        />
       </div>
 
       <div>
@@ -468,6 +476,11 @@ export function DashboardContent() {
           walletAddress={address!}
         />
       </div>
+
+      <SendTransferDrawer
+        open={sendDrawerOpen}
+        onOpenChange={setSendDrawerOpen}
+      />
     </main>
   );
 }

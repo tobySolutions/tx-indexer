@@ -1,7 +1,15 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
-  "globalEnv": ["RPC_URL", "SIGNATURE", "WALLET_ADDRESS", "JUPITER_API_KEY"],
+  "globalEnv": [
+    "RPC_URL",
+    "SIGNATURE",
+    "WALLET_ADDRESS",
+    "JUPITER_API_KEY",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

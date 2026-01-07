@@ -1,12 +1,107 @@
 @import "tailwindcss";
 
 @theme {
-  --color-vibrant-red: #FF3402;
+  --color-vibrant-red: #ff3402;
+
+  /* Animation keyframes for sheet/drawer */
+  --animate-in: enter 0.2s ease-out;
+  --animate-out: exit 0.15s ease-in;
+
+  @keyframes enter {
+    from {
+      opacity: var(--tw-enter-opacity, 1);
+      transform: translate3d(
+          var(--tw-enter-translate-x, 0),
+          var(--tw-enter-translate-y, 0),
+          0
+        )
+        scale3d(
+          var(--tw-enter-scale, 1),
+          var(--tw-enter-scale, 1),
+          var(--tw-enter-scale, 1)
+        )
+        rotate(var(--tw-enter-rotate, 0));
+    }
+  }
+
+  @keyframes exit {
+    to {
+      opacity: var(--tw-exit-opacity, 1);
+      transform: translate3d(
+          var(--tw-exit-translate-x, 0),
+          var(--tw-exit-translate-y, 0),
+          0
+        )
+        scale3d(
+          var(--tw-exit-scale, 1),
+          var(--tw-exit-scale, 1),
+          var(--tw-exit-scale, 1)
+        )
+        rotate(var(--tw-exit-rotate, 0));
+    }
+  }
 }
 
 .imgDark {
   display: none;
-}   
+}
+
+/* Sheet/Drawer animations */
+@keyframes sheet-slide-in-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-slide-out-to-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sheet-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Sheet overlay animations */
+[data-sheet-overlay][data-state="open"] {
+  animation: sheet-fade-in 200ms ease-out forwards;
+}
+
+[data-sheet-overlay][data-state="closed"] {
+  animation: sheet-fade-out 150ms ease-in forwards;
+}
+
+/* Sheet content animations */
+[data-sheet-content][data-state="open"] {
+  animation: sheet-slide-in-from-right 300ms cubic-bezier(0.32, 0.72, 0, 1)
+    forwards;
+}
+
+[data-sheet-content][data-state="closed"] {
+  animation: sheet-slide-out-to-right 200ms cubic-bezier(0.32, 0.72, 0, 1)
+    forwards;
+}
 
 @layer base {
   :root {
@@ -76,7 +171,7 @@
   [data-print-hide] {
     display: none !important;
   }
-  
+
   body {
     background: white;
     max-width: 320px;
@@ -84,14 +179,14 @@
     padding: 0;
     margin: 0;
   }
-  
+
   [data-print-receipt] {
     max-width: 400px;
     margin: 0 auto;
     border: none !important;
     box-shadow: none !important;
   }
-  
+
   @page {
     margin: 0.5cm;
     size: A5;

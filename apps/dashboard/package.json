@@ -11,15 +11,20 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
     "@solana/client": "^1.1.4",
     "@solana/kit": "^5.0.0",
     "@solana/react-hooks": "^1.1.4",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.89.0",
+    "bs58": "^6.0.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.560.0",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "tailwind-merge": "^3.4.0",
+    "tweetnacl": "^1.0.3",
     "tx-indexer": "^0.5.4"
   },
   "devDependencies": {

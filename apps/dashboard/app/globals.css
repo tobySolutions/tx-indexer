@@ -103,6 +103,64 @@
     forwards;
 }
 
+/* New transaction animations */
+@keyframes new-transaction-incoming {
+  0% {
+    background-color: rgb(187 247 208 / 0.7); /* green-200 with opacity */
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: rgb(187 247 208 / 0.4);
+    transform: scale(1);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+@keyframes new-transaction-outgoing {
+  0% {
+    background-color: rgb(254 202 202 / 0.7); /* red-200 with opacity */
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: rgb(254 202 202 / 0.4);
+    transform: scale(1);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+@keyframes new-transaction-neutral {
+  0% {
+    background-color: rgb(229 231 235 / 0.7); /* gray-200 with opacity */
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: rgb(229 231 235 / 0.4);
+    transform: scale(1);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+.animate-new-transaction-incoming {
+  animation: new-transaction-incoming 3s ease-out forwards;
+}
+
+.animate-new-transaction-outgoing {
+  animation: new-transaction-outgoing 3s ease-out forwards;
+}
+
+.animate-new-transaction-neutral {
+  animation: new-transaction-neutral 3s ease-out forwards;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

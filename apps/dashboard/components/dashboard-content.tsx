@@ -2,11 +2,9 @@
 
 import { useWallet } from "@solana/react-hooks";
 import type { ClassifiedTransaction } from "tx-indexer";
-import { useState, useEffect, useTransition } from "react";
-import {
-  getDashboardData,
-  type PortfolioSummary,
-} from "@/app/actions/dashboard";
+import { useState, useEffect, useRef } from "react";
+import { type PortfolioSummary } from "@/app/actions/dashboard";
+import { useDashboardData } from "@/hooks/use-dashboard-data";
 import {
   formatRelativeTime,
   formatDateOnly,
@@ -34,6 +32,7 @@ import {
   Wallet,
   ChevronDown,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import localFont from "next/font/local";
 import Image from "next/image";
@@ -137,13 +136,26 @@ function PortfolioCard({
 function TransactionRow({
   transaction,
   walletAddress,
+  isNew = false,
 }: {
   transaction: ClassifiedTransaction;
   walletAddress: string;
+  isNew?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showNewAnimation, setShowNewAnimation] = useState(isNew);
   const direction = getTransactionDirection(transaction, walletAddress);
   const { tx, classification } = transaction;
+
+  // Sync animation state when isNew prop changes
+  useEffect(() => {
+    if (isNew) {
+      setShowNewAnimation(true);
+      // Clear the "new" highlight after animation completes
+      const timer = setTimeout(() => setShowNewAnimation(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isNew]);
 
   const isSuccess = tx.err === null;
   const isSwap = classification.primaryType === "swap";
@@ -155,8 +167,23 @@ function TransactionRow({
     | undefined;
   const fee = tx.fee ? tx.fee / 1e9 : 0;
 
+  // Get animation class based on transaction direction
+  const getNewAnimationClass = () => {
+    if (!showNewAnimation) return "";
+    if (direction.direction === "incoming")
+      return "animate-new-transaction-incoming";
+    if (direction.direction === "outgoing")
+      return "animate-new-transaction-outgoing";
+    return "animate-new-transaction-neutral";
+  };
+
   return (
-    <div className="border-b border-neutral-100 last:border-b-0">
+    <div
+      className={cn(
+        "border-b border-neutral-100 last:border-b-0 transition-all duration-500",
+        getNewAnimationClass(),
+      )}
+    >
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -339,6 +366,42 @@ function TransactionsList({
   transactions: ClassifiedTransaction[];
   walletAddress: string;
 }) {
+  // Track previously seen transaction signatures to detect new ones
+  const seenSignaturesRef = useRef<Set<string>>(new Set());
+  const [newSignatures, setNewSignatures] = useState<Set<string>>(new Set());
+  const isInitializedRef = useRef(false);
+
+  // Create a stable key from transaction signatures to detect changes
+  const transactionKey = transactions.map((tx) => tx.tx.signature).join(",");
+
+  useEffect(() => {
+    const currentSignatures = transactions.map((tx) => tx.tx.signature);
+
+    if (!isInitializedRef.current) {
+      // On first render, mark all current transactions as "seen"
+      seenSignaturesRef.current = new Set(currentSignatures);
+      isInitializedRef.current = true;
+      return;
+    }
+
+    // Find new transactions (signatures we haven't seen before)
+    const newSigs = new Set<string>();
+    for (const sig of currentSignatures) {
+      if (!seenSignaturesRef.current.has(sig)) {
+        newSigs.add(sig);
+        seenSignaturesRef.current.add(sig);
+      }
+    }
+
+    if (newSigs.size > 0) {
+      console.log("New transactions detected:", Array.from(newSigs));
+      setNewSignatures(newSigs);
+      // Clear the "new" state after animation duration
+      const timer = setTimeout(() => setNewSignatures(new Set()), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [transactionKey, transactions]);
+
   if (transactions.length === 0) {
     return (
       <div className="border border-neutral-200 rounded-lg bg-white p-8 text-center">
@@ -360,6 +423,7 @@ function TransactionsList({
           key={tx.tx.signature}
           transaction={tx}
           walletAddress={walletAddress}
+          isNew={newSignatures.has(tx.tx.signature)}
         />
       ))}
     </div>
@@ -369,28 +433,30 @@ function TransactionsList({
 export function DashboardContent() {
   const wallet = useWallet();
   const isConnected = wallet.status === "connected";
-  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
-  const [transactions, setTransactions] = useState<ClassifiedTransaction[]>([]);
-  const [isPending, startTransition] = useTransition();
   const [sendDrawerOpen, setSendDrawerOpen] = useState(false);
+  // Enable fast polling temporarily after a transaction
+  const [fastPolling, setFastPolling] = useState(false);
 
   const address = isConnected
     ? wallet.session.account.address.toString()
     : null;
 
-  useEffect(() => {
-    if (!address) {
-      setPortfolio(null);
-      setTransactions([]);
-      return;
-    }
+  const {
+    portfolio,
+    transactions,
+    usdcBalance,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useDashboardData(address, { fastPolling });
 
-    startTransition(async () => {
-      const data = await getDashboardData(address, 10);
-      setPortfolio(data.portfolio);
-      setTransactions(data.transactions);
-    });
-  }, [address]);
+  // Handle transfer success - enable fast polling for 30 seconds
+  const handleTransferSuccess = () => {
+    setFastPolling(true);
+    refetch();
+    // Disable fast polling after 30 seconds
+    setTimeout(() => setFastPolling(false), 30 * 1000);
+  };
 
   if (!isConnected) {
     return (
@@ -427,7 +493,7 @@ export function DashboardContent() {
     );
   }
 
-  if (isPending) {
+  if (isLoading) {
     return (
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-8">
@@ -467,11 +533,23 @@ export function DashboardContent() {
       </div>
 
       <div>
-        <h2
-          className={`${bitcountFont.className} text-2xl text-neutral-600 mb-4`}
-        >
-          <span className="text-vibrant-red">{"//"}</span> recent transactions
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className={`${bitcountFont.className} text-2xl text-neutral-600`}>
+            <span className="text-vibrant-red">{"//"}</span> recent transactions
+          </h2>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className={cn(
+              "p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 transition-colors",
+              isFetching && "animate-spin",
+            )}
+            title="Refresh"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
         <TransactionsList
           transactions={transactions}
           walletAddress={address!}
@@ -481,6 +559,8 @@ export function DashboardContent() {
       <SendTransferDrawer
         open={sendDrawerOpen}
         onOpenChange={setSendDrawerOpen}
+        onTransferSuccess={handleTransferSuccess}
+        usdcBalance={usdcBalance}
       />
     </main>
   );

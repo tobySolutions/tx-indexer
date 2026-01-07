@@ -41,6 +41,9 @@ import {
 interface SendTransferDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTransferSuccess?: () => void;
+  /** USDC balance from dashboard data (avoids duplicate RPC calls) */
+  usdcBalance?: number | null;
 }
 
 function formatUsd(value: number): string {
@@ -75,11 +78,13 @@ function getStatusMessage(status: TransferStatus): string {
 export function SendTransferDrawer({
   open,
   onOpenChange,
+  onTransferSuccess,
+  usdcBalance: externalUsdcBalance,
 }: SendTransferDrawerProps) {
   const wallet = useWallet();
   const { isAuthenticated } = useAuth();
   const {
-    balance: usdcBalance,
+    balance: hookUsdcBalance,
     isLoadingBalance,
     transfer,
     status: transferStatus,
@@ -88,6 +93,26 @@ export function SendTransferDrawer({
     error: transferError,
     reset: resetTransfer,
   } = useUsdcTransfer();
+
+  // Prefer external balance (from React Query) to avoid duplicate RPC calls
+  const usdcBalance = externalUsdcBalance ?? hookUsdcBalance;
+
+  // Refetch dashboard data when transfer is confirmed
+  const prevTransferStatus = useRef(transferStatus);
+  useEffect(() => {
+    // Trigger refetch when status changes to "success" (transaction confirmed)
+    if (
+      prevTransferStatus.current !== "success" &&
+      transferStatus === "success"
+    ) {
+      // Small delay to allow indexer to pick up the transaction
+      const timer = setTimeout(() => {
+        onTransferSuccess?.();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+    prevTransferStatus.current = transferStatus;
+  }, [transferStatus, onTransferSuccess]);
 
   const isConnected = wallet.status === "connected";
   const senderAddress = isConnected
@@ -282,6 +307,7 @@ export function SendTransferDrawer({
         if (isAuthenticated && newLabel && !currentLabel) {
           await upsertWalletLabel(recipientAddress, newLabel);
         }
+        // Note: refetch is triggered by useEffect when transferStatus becomes "success"
       }
     },
     [

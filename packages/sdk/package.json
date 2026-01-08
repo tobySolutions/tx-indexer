@@ -55,7 +55,7 @@
     "url": "https://github.com/cxalem/tx-indexer.git",
     "directory": "packages/sdk"
   },
-  "homepage": "https://github.com/cxalem/tx-indexer#readme",
+  "homepage": "https://itx-indexer.com/",
   "bugs": "https://github.com/cxalem/tx-indexer/issues",
   "license": "MIT",
   "devDependencies": {

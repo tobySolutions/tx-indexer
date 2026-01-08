@@ -6,11 +6,13 @@ import {
 } from "@tx-indexer/solana/rpc/client";
 import { fetchWalletBalance } from "@tx-indexer/solana/fetcher/balances";
 import {
-  fetchWalletSignatures,
-  fetchWalletAndTokenSignatures,
+  fetchWalletSignaturesPaged,
+  fetchWalletTokenAccounts,
+  fetchTokenAccountSignaturesThrottled,
   fetchTransaction,
   fetchTransactionsBatch,
 } from "@tx-indexer/solana/fetcher/transactions";
+import type { RetryConfig } from "@tx-indexer/solana/rpc/retry";
 
 export type { FetchTransactionsConfig } from "@tx-indexer/solana/fetcher/transactions";
 import { transactionToLegs } from "@tx-indexer/solana/mappers/transaction-to-legs";
@@ -39,15 +41,10 @@ import {
 
 const NFT_TRANSACTION_TYPES = ["nft_mint", "nft_purchase", "nft_sale"] as const;
 
-/**
- * Enriches token metadata in legs and classification using the token fetcher.
- * This replaces "Unknown Token" placeholders with actual token metadata from Jupiter.
- */
 async function enrichTokenMetadata(
   tokenFetcher: TokenFetcher,
   classified: ClassifiedTransaction,
 ): Promise<ClassifiedTransaction> {
-  // Collect all unique mints from legs
   const mints = new Set<string>();
   const decimalsMap = new Map<string, number>();
 
@@ -57,7 +54,6 @@ async function enrichTokenMetadata(
     decimalsMap.set(mint, leg.amount.token.decimals);
   }
 
-  // Also check classification amounts
   if (classified.classification.primaryAmount?.token.mint) {
     const mint = classified.classification.primaryAmount.token.mint;
     mints.add(mint);
@@ -79,13 +75,11 @@ async function enrichTokenMetadata(
     return classified;
   }
 
-  // Fetch all token metadata
   const tokenInfoMap = await tokenFetcher.getTokens(
     Array.from(mints),
     9, // default decimals
   );
 
-  // Helper to enrich a MoneyAmount
   function enrichAmount(
     amount: MoneyAmount | null | undefined,
   ): MoneyAmount | null | undefined {
@@ -100,13 +94,11 @@ async function enrichTokenMetadata(
       ...amount,
       token: {
         ...enrichedToken,
-        // Keep the decimals from the original (from RPC) as they're authoritative
         decimals: amount.token.decimals,
       },
     };
   }
 
-  // Helper to enrich a leg
   function enrichLeg(leg: TxLeg): TxLeg {
     const enrichedToken = tokenInfoMap.get(leg.amount.token.mint);
     if (!enrichedToken || enrichedToken.symbol === leg.amount.token.symbol) {
@@ -125,10 +117,7 @@ async function enrichTokenMetadata(
     };
   }
 
-  // Enrich legs
   const enrichedLegs = classified.legs.map(enrichLeg);
-
-  // Enrich classification amounts
   const enrichedClassification: TransactionClassification = {
     ...classified.classification,
     primaryAmount:
@@ -143,16 +132,11 @@ async function enrichTokenMetadata(
   };
 }
 
-/**
- * Enriches token metadata for a batch of transactions.
- */
 async function enrichTokenMetadataBatch(
   tokenFetcher: TokenFetcher,
   transactions: ClassifiedTransaction[],
 ): Promise<ClassifiedTransaction[]> {
-  // Collect all unique mints across all transactions
   const mints = new Set<string>();
-
   for (const classified of transactions) {
     for (const leg of classified.legs) {
       mints.add(leg.amount.token.mint);
@@ -169,10 +153,8 @@ async function enrichTokenMetadataBatch(
     return transactions;
   }
 
-  // Pre-fetch all tokens in one batch
   await tokenFetcher.getTokens(Array.from(mints));
 
-  // Now enrich each transaction (will use cached data)
   return Promise.all(
     transactions.map((tx) => enrichTokenMetadata(tokenFetcher, tx)),
   );
@@ -231,27 +213,16 @@ export interface GetTransactionsOptions {
   filterSpam?: boolean;
   spamConfig?: SpamFilterConfig;
   enrichNftMetadata?: boolean;
-  /**
-   * Enrich token metadata from Jupiter API.
-   * Replaces "Unknown Token" placeholders with actual token names/symbols/logos.
-   * Defaults to true.
-   */
   enrichTokenMetadata?: boolean;
-  /**
-   * Include transactions from token accounts (ATAs) in addition to the wallet address.
-   * This captures incoming token transfers that only reference the ATA, not the wallet.
-   * Defaults to true.
-   */
   includeTokenAccounts?: boolean;
+  maxIterations?: number;
+  signatureConcurrency?: number;
+  transactionConcurrency?: number;
+  retry?: RetryConfig;
 }
 
 export interface GetTransactionOptions {
   enrichNftMetadata?: boolean;
-  /**
-   * Enrich token metadata from Jupiter API.
-   * Replaces "Unknown Token" placeholders with actual token names/symbols/logos.
-   * Defaults to true.
-   */
   enrichTokenMetadata?: boolean;
 }
 
@@ -295,7 +266,6 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
       ? options.client
       : createSolanaClient(options.rpcUrl, options.wsUrl);
 
-  // Create a shared token fetcher for this indexer instance
   const tokenFetcher = createTokenFetcher();
 
   return {
@@ -321,24 +291,25 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         enrichNftMetadata = true,
         enrichTokenMetadata: enrichTokens = true,
         includeTokenAccounts = true,
+        maxIterations = 10,
+        signatureConcurrency = 3,
+        transactionConcurrency = 5,
+        retry,
       } = options;
 
-      // Choose the appropriate signature fetcher based on includeTokenAccounts option
-      const fetchSignatures = includeTokenAccounts
-        ? fetchWalletAndTokenSignatures
-        : fetchWalletSignatures;
+      const walletAddressStr = walletAddress.toString();
+      const seenSignatures = new Set<string>();
+      let cachedTokenAccounts: Address[] | null = null;
 
       async function enrichBatch(
         transactions: ClassifiedTransaction[],
       ): Promise<ClassifiedTransaction[]> {
         let result = transactions;
 
-        // Enrich token metadata first
         if (enrichTokens) {
           result = await enrichTokenMetadataBatch(tokenFetcher, result);
         }
 
-        // Then enrich NFT metadata
         if (enrichNftMetadata && rpcUrl) {
           const nftMints = result
             .filter((t) =>
@@ -386,27 +357,10 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         return result;
       }
 
-      if (!filterSpam) {
-        const signatures = await fetchSignatures(client.rpc, walletAddress, {
-          limit,
-          before,
-          until,
-        });
-
-        if (signatures.length === 0) {
-          return [];
-        }
-
-        const signatureObjects = signatures.map((sig) =>
-          parseSignature(sig.signature),
-        );
-        const transactions = await fetchTransactionsBatch(
-          client.rpc,
-          signatureObjects,
-        );
-
-        const walletAddressStr = walletAddress.toString();
-        const classified = transactions.map((tx) => {
+      function classifyBatch(
+        transactions: RawTransaction[],
+      ): ClassifiedTransaction[] {
+        return transactions.map((tx) => {
           tx.protocol = detectProtocol(tx.programIds);
           const legs = transactionToLegs(tx, walletAddressStr);
           const classification = classifyTransaction(
@@ -416,37 +370,35 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
           );
           return { tx, classification, legs };
         });
+      }
 
-        // Sort by blockTime descending (most recent first)
-        classified.sort((a, b) => {
+      function sortByBlockTime(
+        txs: ClassifiedTransaction[],
+      ): ClassifiedTransaction[] {
+        return txs.sort((a, b) => {
           const timeA = a.tx.blockTime ? Number(a.tx.blockTime) : 0;
           const timeB = b.tx.blockTime ? Number(b.tx.blockTime) : 0;
           return timeB - timeA;
         });
-
-        return enrichBatch(classified);
       }
 
-      const accumulated: ClassifiedTransaction[] = [];
-      let currentBefore = before;
-      const MAX_ITERATIONS = 10;
-      let iteration = 0;
-      const walletAddressStr = walletAddress.toString();
-
-      while (accumulated.length < limit && iteration < MAX_ITERATIONS) {
-        iteration++;
-
-        const batchSize = iteration === 1 ? limit : limit * 2;
-
-        const signatures = await fetchSignatures(client.rpc, walletAddress, {
-          limit: batchSize,
-          before: currentBefore,
-          until,
-        });
-
-        if (signatures.length === 0) {
-          break;
+      function dedupeSignatures(
+        signatures: RawTransaction[],
+      ): RawTransaction[] {
+        const result: RawTransaction[] = [];
+        for (const sig of signatures) {
+          if (!seenSignatures.has(sig.signature)) {
+            seenSignatures.add(sig.signature);
+            result.push(sig);
+          }
         }
+        return result;
+      }
+
+      async function fetchAndClassify(
+        signatures: RawTransaction[],
+      ): Promise<ClassifiedTransaction[]> {
+        if (signatures.length === 0) return [];
 
         const signatureObjects = signatures.map((sig) =>
           parseSignature(sig.signature),
@@ -454,42 +406,126 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         const transactions = await fetchTransactionsBatch(
           client.rpc,
           signatureObjects,
+          {
+            concurrency: transactionConcurrency,
+            retry,
+          },
         );
 
-        const classified = transactions.map((tx) => {
-          tx.protocol = detectProtocol(tx.programIds);
-          const legs = transactionToLegs(tx, walletAddressStr);
-          const classification = classifyTransaction(
-            legs,
-            tx,
-            walletAddressStr,
-          );
-          return { tx, classification, legs };
-        });
-
-        const nonSpam = filterSpamTransactions(
-          classified,
-          spamConfig,
-          walletAddressStr,
-        );
-        accumulated.push(...nonSpam);
-
-        const lastSignature = signatures[signatures.length - 1];
-        if (lastSignature) {
-          currentBefore = parseSignature(lastSignature.signature);
-        } else {
-          break;
-        }
+        return classifyBatch(transactions);
       }
 
-      // Sort by blockTime descending (most recent first) before slicing
-      accumulated.sort((a, b) => {
-        const timeA = a.tx.blockTime ? Number(a.tx.blockTime) : 0;
-        const timeB = b.tx.blockTime ? Number(b.tx.blockTime) : 0;
-        return timeB - timeA;
-      });
+      async function accumulateUntilLimit(): Promise<ClassifiedTransaction[]> {
+        const accumulated: ClassifiedTransaction[] = [];
+        let currentBefore = before;
+        let iteration = 0;
+        let walletExhausted = false;
+        let ataExhausted = false;
+        let ataBefore = before;
 
-      const result = accumulated.slice(0, limit);
+        while (accumulated.length < limit && iteration < maxIterations) {
+          iteration++;
+
+          const needed = limit - accumulated.length;
+          const pageSize = Math.max(needed * 2, 20);
+
+          if (!walletExhausted) {
+            const walletSigs = await fetchWalletSignaturesPaged(
+              client.rpc,
+              walletAddress,
+              { pageSize, before: currentBefore, until, retry },
+            );
+
+            if (walletSigs.length === 0) {
+              walletExhausted = true;
+            } else {
+              const newSigs = dedupeSignatures(walletSigs);
+              if (newSigs.length > 0) {
+                const classified = await fetchAndClassify(newSigs);
+                const nonSpam = filterSpam
+                  ? filterSpamTransactions(
+                      classified,
+                      spamConfig,
+                      walletAddressStr,
+                    )
+                  : classified;
+                accumulated.push(...nonSpam);
+
+                const lastSig = walletSigs[walletSigs.length - 1];
+                if (lastSig) {
+                  currentBefore = parseSignature(lastSig.signature);
+                }
+              }
+
+              if (walletSigs.length < pageSize) {
+                walletExhausted = true;
+              }
+            }
+          }
+
+          if (accumulated.length >= limit) break;
+
+          if (includeTokenAccounts && walletExhausted && !ataExhausted) {
+            if (!cachedTokenAccounts) {
+              cachedTokenAccounts = await fetchWalletTokenAccounts(
+                client.rpc,
+                walletAddress,
+                retry,
+              );
+            }
+
+            if (cachedTokenAccounts.length === 0) {
+              ataExhausted = true;
+            } else {
+              const ataSigs = await fetchTokenAccountSignaturesThrottled(
+                client.rpc,
+                cachedTokenAccounts,
+                {
+                  concurrency: signatureConcurrency,
+                  limit: pageSize,
+                  before: ataBefore,
+                  until,
+                  retry,
+                },
+              );
+
+              if (ataSigs.length === 0) {
+                ataExhausted = true;
+              } else {
+                const newSigs = dedupeSignatures(ataSigs);
+                if (newSigs.length > 0) {
+                  const classified = await fetchAndClassify(newSigs);
+                  const nonSpam = filterSpam
+                    ? filterSpamTransactions(
+                        classified,
+                        spamConfig,
+                        walletAddressStr,
+                      )
+                    : classified;
+                  accumulated.push(...nonSpam);
+
+                  const lastSig = ataSigs[ataSigs.length - 1];
+                  if (lastSig) {
+                    ataBefore = parseSignature(lastSig.signature);
+                  }
+                }
+
+                if (ataSigs.length < pageSize) {
+                  ataExhausted = true;
+                }
+              }
+            }
+          }
+
+          if (walletExhausted && (!includeTokenAccounts || ataExhausted)) {
+            break;
+          }
+        }
+
+        return sortByBlockTime(accumulated).slice(0, limit);
+      }
+
+      const result = await accumulateUntilLimit();
       return enrichBatch(result);
     },
 
@@ -515,12 +551,10 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
 
       let classified: ClassifiedTransaction = { tx, classification, legs };
 
-      // Enrich token metadata
       if (enrichTokens) {
         classified = await enrichTokenMetadata(tokenFetcher, classified);
       }
 
-      // Enrich NFT metadata
       if (enrichNftMetadata && rpcUrl) {
         classified = await enrichNftClassification(rpcUrl, classified);
       }

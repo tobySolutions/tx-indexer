@@ -1,6 +1,16 @@
 import { describe, test, expect, mock } from "bun:test";
-import type { Signature, Rpc, GetTransactionApi } from "@solana/kit";
-import { fetchTransactionsBatch } from "./transactions";
+import type {
+  Signature,
+  Rpc,
+  GetTransactionApi,
+  GetSignaturesForAddressApi,
+  Address,
+} from "@solana/kit";
+import {
+  fetchTransactionsBatch,
+  fetchWalletSignaturesPaged,
+  fetchTokenAccountSignaturesThrottled,
+} from "./transactions";
 
 function createMockSignature(id: number): Signature {
   return `sig_${id}${"x".repeat(80)}`.slice(0, 88) as Signature;
@@ -86,7 +96,7 @@ describe("fetchTransactionsBatch", () => {
     expect(result).toHaveLength(2);
   });
 
-  test("respects default concurrency limit of 10", async () => {
+  test("respects default concurrency limit of 5", async () => {
     let currentConcurrent = 0;
     let maxConcurrent = 0;
 
@@ -105,7 +115,7 @@ describe("fetchTransactionsBatch", () => {
 
     await fetchTransactionsBatch(rpc, signatures);
 
-    expect(maxConcurrent).toBeLessThanOrEqual(10);
+    expect(maxConcurrent).toBeLessThanOrEqual(5);
     expect(maxConcurrent).toBeGreaterThan(1);
   });
 
@@ -317,5 +327,199 @@ describe("fetchTransactionsBatch", () => {
 
     expect(result).toHaveLength(1);
     expect(errors).toHaveLength(0);
+  });
+});
+
+describe("fetchWalletSignaturesPaged", () => {
+  test("fetches signatures with retry on 429", async () => {
+    let attempts = 0;
+    const rpc = {
+      getSignaturesForAddress: mock(() => ({
+        send: mock(async () => {
+          attempts++;
+          if (attempts < 2) {
+            throw new Error("429 Too Many Requests");
+          }
+          return [
+            {
+              signature: "sig1",
+              slot: 100n,
+              blockTime: 1000n,
+              err: null,
+              memo: null,
+            },
+            {
+              signature: "sig2",
+              slot: 101n,
+              blockTime: 1001n,
+              err: null,
+              memo: null,
+            },
+          ];
+        }),
+      })),
+    } as unknown as Rpc<GetSignaturesForAddressApi>;
+
+    const result = await fetchWalletSignaturesPaged(
+      rpc,
+      "wallet123" as Address,
+      { retry: { baseDelayMs: 10 } },
+    );
+
+    expect(result).toHaveLength(2);
+    expect(attempts).toBe(2);
+  });
+
+  test("respects pageSize option", async () => {
+    let capturedLimit: number | undefined;
+    const rpc = {
+      getSignaturesForAddress: mock((_addr: Address, options: any) => ({
+        send: mock(async () => {
+          capturedLimit = options?.limit;
+          return [];
+        }),
+      })),
+    } as unknown as Rpc<GetSignaturesForAddressApi>;
+
+    await fetchWalletSignaturesPaged(rpc, "wallet123" as Address, {
+      pageSize: 50,
+    });
+
+    expect(capturedLimit).toBe(50);
+  });
+});
+
+describe("fetchTokenAccountSignaturesThrottled", () => {
+  test("returns empty array for empty token accounts", async () => {
+    const rpc = {} as Rpc<GetSignaturesForAddressApi>;
+    const result = await fetchTokenAccountSignaturesThrottled(rpc, []);
+    expect(result).toEqual([]);
+  });
+
+  test("deduplicates signatures across ATAs", async () => {
+    const rpc = {
+      getSignaturesForAddress: mock((addr: Address) => ({
+        send: mock(async () => [
+          {
+            signature: "shared_sig",
+            slot: 100n,
+            blockTime: 1000n,
+            err: null,
+            memo: null,
+          },
+          {
+            signature: `unique_${addr}`,
+            slot: 101n,
+            blockTime: 1001n,
+            err: null,
+            memo: null,
+          },
+        ]),
+      })),
+    } as unknown as Rpc<GetSignaturesForAddressApi>;
+
+    const result = await fetchTokenAccountSignaturesThrottled(rpc, [
+      "ata1" as Address,
+      "ata2" as Address,
+    ]);
+
+    const signatures = result.map((r) => r.signature as string);
+    expect(signatures).toContain("shared_sig");
+    expect(signatures.filter((s) => s === "shared_sig")).toHaveLength(1);
+  });
+
+  test("respects concurrency limit", async () => {
+    let currentConcurrent = 0;
+    let maxConcurrent = 0;
+
+    const rpc = {
+      getSignaturesForAddress: mock(() => ({
+        send: mock(async () => {
+          currentConcurrent++;
+          maxConcurrent = Math.max(maxConcurrent, currentConcurrent);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          currentConcurrent--;
+          return [];
+        }),
+      })),
+    } as unknown as Rpc<GetSignaturesForAddressApi>;
+
+    const atas = Array.from({ length: 10 }, (_, i) => `ata${i}` as Address);
+    await fetchTokenAccountSignaturesThrottled(rpc, atas, { concurrency: 2 });
+
+    expect(maxConcurrent).toBeLessThanOrEqual(2);
+  });
+
+  test("calls onError for failed ATA fetches after retries exhausted", async () => {
+    const errors: { ata: Address; error: Error }[] = [];
+
+    const rpc = {
+      getSignaturesForAddress: mock((addr: Address) => ({
+        send: mock(async () => {
+          if (addr === "failing_ata") {
+            throw new Error("Network error");
+          }
+          return [
+            {
+              signature: "sig1",
+              slot: 100n,
+              blockTime: 1000n,
+              err: null,
+              memo: null,
+            },
+          ];
+        }),
+      })),
+    } as unknown as Rpc<GetSignaturesForAddressApi>;
+
+    const result = await fetchTokenAccountSignaturesThrottled(
+      rpc,
+      ["good_ata" as Address, "failing_ata" as Address],
+      {
+        onError: (ata, err) => errors.push({ ata, error: err }),
+        retry: { maxAttempts: 1 },
+      },
+    );
+
+    expect(result).toHaveLength(1);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.ata as string).toBe("failing_ata");
+  });
+
+  test("sorts results by slot descending", async () => {
+    const rpc = {
+      getSignaturesForAddress: mock((addr: Address) => ({
+        send: mock(async () => {
+          if (addr === "ata1") {
+            return [
+              {
+                signature: "old_sig",
+                slot: 50n,
+                blockTime: 500n,
+                err: null,
+                memo: null,
+              },
+            ];
+          }
+          return [
+            {
+              signature: "new_sig",
+              slot: 200n,
+              blockTime: 2000n,
+              err: null,
+              memo: null,
+            },
+          ];
+        }),
+      })),
+    } as unknown as Rpc<GetSignaturesForAddressApi>;
+
+    const result = await fetchTokenAccountSignaturesThrottled(rpc, [
+      "ata1" as Address,
+      "ata2" as Address,
+    ]);
+
+    expect(result[0]!.signature as string).toBe("new_sig");
+    expect(result[1]!.signature as string).toBe("old_sig");
   });
 });

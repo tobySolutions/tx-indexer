@@ -35,14 +35,22 @@ export interface FetchBatchOptions {
   onFetchError?: (signature: Signature, error: Error) => void;
 }
 
-/**
- * Fetches transaction signatures for a wallet address.
- *
- * @param rpc - Solana RPC client
- * @param walletAddress - Wallet address to fetch signatures for
- * @param config - Optional pagination and limit configuration
- * @returns Array of raw transactions with basic metadata only
- */
+export interface FetchSignaturesPagedOptions {
+  pageSize?: number;
+  before?: Signature;
+  until?: Signature;
+  retry?: RetryConfig;
+}
+
+export interface FetchTokenAccountSignaturesOptions {
+  concurrency?: number;
+  limit?: number;
+  before?: Signature;
+  until?: Signature;
+  retry?: RetryConfig;
+  onError?: (ata: Address, error: Error) => void;
+}
+
 export async function fetchWalletSignatures(
   rpc: Rpc<GetSignaturesForAddressApi>,
   walletAddress: Address,
@@ -69,29 +77,56 @@ export async function fetchWalletSignatures(
   }));
 }
 
-/**
- * Fetches all token account (ATA) addresses for a wallet.
- *
- * @param rpc - Solana RPC client
- * @param walletAddress - Wallet address to fetch token accounts for
- * @returns Array of token account addresses (ATAs)
- */
+export async function fetchWalletSignaturesPaged(
+  rpc: Rpc<GetSignaturesForAddressApi>,
+  walletAddress: Address,
+  options: FetchSignaturesPagedOptions = {},
+): Promise<RawTransaction[]> {
+  const { pageSize = 100, before, until, retry } = options;
+
+  const response = await withRetry(
+    () =>
+      rpc
+        .getSignaturesForAddress(walletAddress, {
+          limit: pageSize,
+          before,
+          until,
+        })
+        .send(),
+    retry,
+  );
+
+  return response.map((sig) => ({
+    signature: sig.signature,
+    slot: sig.slot,
+    blockTime: sig.blockTime,
+    err: sig.err,
+    programIds: [],
+    protocol: null,
+    memo: sig.memo || null,
+  }));
+}
+
 export async function fetchWalletTokenAccounts(
   rpc: Rpc<GetTokenAccountsByOwnerApi>,
   walletAddress: Address,
+  retry?: RetryConfig,
 ): Promise<Address[]> {
   const tokenPrograms = [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID];
 
   const responses = await Promise.all(
     tokenPrograms.map((programId) =>
-      rpc
-        .getTokenAccountsByOwner(
-          walletAddress,
-          { programId: address(programId) },
-          { encoding: "jsonParsed" },
-        )
-        .send()
-        .catch(() => ({ value: [] })),
+      withRetry(
+        () =>
+          rpc
+            .getTokenAccountsByOwner(
+              walletAddress,
+              { programId: address(programId) },
+              { encoding: "jsonParsed" },
+            )
+            .send(),
+        retry,
+      ).catch(() => ({ value: [] })),
     ),
   );
 
@@ -105,15 +140,69 @@ export async function fetchWalletTokenAccounts(
   return tokenAccounts;
 }
 
-/**
- * Fetches transaction signatures for a wallet and all its token accounts (ATAs).
- * This captures incoming token transfers that only reference the ATA, not the wallet address.
- *
- * @param rpc - Solana RPC client
- * @param walletAddress - Wallet address to fetch signatures for
- * @param config - Optional pagination and limit configuration
- * @returns Array of raw transactions with basic metadata, deduplicated and sorted by slot (descending)
- */
+export async function fetchTokenAccountSignaturesThrottled(
+  rpc: Rpc<GetSignaturesForAddressApi>,
+  tokenAccounts: Address[],
+  options: FetchTokenAccountSignaturesOptions = {},
+): Promise<RawTransaction[]> {
+  const {
+    concurrency = 3,
+    limit = 100,
+    before,
+    until,
+    retry,
+    onError,
+  } = options;
+
+  if (tokenAccounts.length === 0) {
+    return [];
+  }
+
+  const limiter = pLimit(concurrency);
+
+  const fetchForAta = async (ata: Address): Promise<RawTransaction[]> => {
+    try {
+      return await withRetry(async () => {
+        const response = await rpc
+          .getSignaturesForAddress(ata, { limit, before, until })
+          .send();
+
+        return response.map((sig) => ({
+          signature: sig.signature,
+          slot: sig.slot,
+          blockTime: sig.blockTime,
+          err: sig.err,
+          programIds: [],
+          protocol: null,
+          memo: sig.memo || null,
+        }));
+      }, retry);
+    } catch (error) {
+      onError?.(ata, error instanceof Error ? error : new Error(String(error)));
+      return [];
+    }
+  };
+
+  const results = await Promise.all(
+    tokenAccounts.map((ata) => limiter(() => fetchForAta(ata))),
+  );
+
+  const signatureMap = new Map<string, RawTransaction>();
+  for (const batch of results) {
+    for (const tx of batch) {
+      if (!signatureMap.has(tx.signature)) {
+        signatureMap.set(tx.signature, tx);
+      }
+    }
+  }
+
+  return Array.from(signatureMap.values()).sort((a, b) => {
+    const slotA = typeof a.slot === "bigint" ? a.slot : BigInt(a.slot);
+    const slotB = typeof b.slot === "bigint" ? b.slot : BigInt(b.slot);
+    return slotB > slotA ? 1 : slotB < slotA ? -1 : 0;
+  });
+}
+
 export async function fetchWalletAndTokenSignatures(
   rpc: Rpc<GetSignaturesForAddressApi & GetTokenAccountsByOwnerApi>,
   walletAddress: Address,
@@ -121,10 +210,7 @@ export async function fetchWalletAndTokenSignatures(
 ): Promise<RawTransaction[]> {
   const { limit = 100, before, until } = config;
 
-  // Fetch token accounts for the wallet
   const tokenAccounts = await fetchWalletTokenAccounts(rpc, walletAddress);
-
-  // Fetch signatures for wallet and all token accounts in parallel
   const allAddresses = [walletAddress, ...tokenAccounts];
 
   const signaturePromises = allAddresses.map((addr) =>
@@ -140,12 +226,9 @@ export async function fetchWalletAndTokenSignatures(
 
   const responses = await Promise.all(signaturePromises);
 
-  // Merge and deduplicate signatures by signature string
   const signatureMap = new Map<string, RawTransaction>();
-
   for (const response of responses) {
     for (const sig of response) {
-      // Only add if not already present (keep first occurrence which is most recent)
       if (!signatureMap.has(sig.signature)) {
         signatureMap.set(sig.signature, {
           signature: sig.signature,
@@ -160,25 +243,15 @@ export async function fetchWalletAndTokenSignatures(
     }
   }
 
-  // Sort by slot descending (most recent first)
   const sortedSignatures = Array.from(signatureMap.values()).sort((a, b) => {
     const slotA = typeof a.slot === "bigint" ? a.slot : BigInt(a.slot);
     const slotB = typeof b.slot === "bigint" ? b.slot : BigInt(b.slot);
     return slotB > slotA ? 1 : slotB < slotA ? -1 : 0;
   });
 
-  // Return only up to the requested limit
   return sortedSignatures.slice(0, limit);
 }
 
-/**
- * Fetches a single transaction with full details including program IDs.
- *
- * @param rpc - Solana RPC client
- * @param signature - Transaction signature
- * @param options - Fetch options including commitment level and retry config
- * @returns Full raw transaction with program IDs, or null if not found
- */
 export async function fetchTransaction(
   rpc: Rpc<GetTransactionApi>,
   signature: Signature,
@@ -202,8 +275,6 @@ export async function fetchTransaction(
     return null;
   }
 
-  // Try to get memo from response metadata first (already decoded by RPC)
-  // Fall back to manual extraction if not available
   const transactionWithLogs = {
     ...response.transaction,
     meta: { logMessages: response.meta?.logMessages },
@@ -249,14 +320,6 @@ export async function fetchTransaction(
   };
 }
 
-/**
- * Fetches multiple transactions with controlled concurrency.
- *
- * @param rpc - Solana RPC client
- * @param signatures - Array of transaction signatures to fetch
- * @param options - Fetch options including commitment level, concurrency limit, and retry config
- * @returns Array of successfully fetched transactions (nulls and errors filtered out)
- */
 export async function fetchTransactionsBatch(
   rpc: Rpc<GetTransactionApi>,
   signatures: Signature[],
@@ -264,7 +327,7 @@ export async function fetchTransactionsBatch(
 ): Promise<RawTransaction[]> {
   const {
     commitment = "confirmed",
-    concurrency = 10,
+    concurrency = 5,
     retry,
     onFetchError,
   } = options;

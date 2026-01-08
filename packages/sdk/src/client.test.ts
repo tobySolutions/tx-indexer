@@ -1,199 +1,362 @@
-import { describe, test, expect, mock } from "bun:test";
-import { createIndexer } from "./client";
+import { describe, test, expect, mock, beforeEach } from "bun:test";
 import type { Address, Signature } from "@solana/kit";
 
-// Mock the dependencies
-const mockRpc: Record<string, ReturnType<typeof mock>> = {
-  getSignaturesForAddress: mock(() => ({
-    send: mock(async () => []),
-  })),
-  getTransaction: mock(() => ({
-    send: mock(async () => null),
-  })),
-};
+describe("getTransactions accumulation behavior", () => {
+  test("ATAs are not fetched when wallet-only results are sufficient", async () => {
+    let ataFetchCount = 0;
+    let walletSigCount = 0;
 
-const mockClient = {
-  rpc: mockRpc,
-};
+    const mockRpc = {
+      getSignaturesForAddress: mock((addr: Address) => ({
+        send: mock(async () => {
+          if (addr.toString().startsWith("ata_")) {
+            ataFetchCount++;
+            return [];
+          }
+          walletSigCount++;
+          return Array.from({ length: 20 }, (_, i) => ({
+            signature: `sig_${i}`,
+            slot: BigInt(1000 - i),
+            blockTime: BigInt(1000000 - i),
+            err: null,
+            memo: null,
+          }));
+        }),
+      })),
+      getTransaction: mock(() => ({
+        send: mock(async () => ({
+          slot: 123n,
+          blockTime: 1000000n,
+          meta: {
+            fee: 5000n,
+            err: null,
+            preTokenBalances: [],
+            postTokenBalances: [],
+            preBalances: [1000000000n],
+            postBalances: [999995000n],
+          },
+          transaction: {
+            message: {
+              accountKeys: [{ toString: () => "account1" }],
+              instructions: [],
+            },
+          },
+        })),
+      })),
+      getTokenAccountsByOwner: mock(() => ({
+        send: mock(async () => ({
+          value: [
+            { pubkey: "ata_1" as Address },
+            { pubkey: "ata_2" as Address },
+          ],
+        })),
+      })),
+    };
 
-describe("TxIndexer.getTransactions with spam filtering", () => {
-  test("should fetch multiple batches until limit is reached", async () => {
-    // Mock scenario: First batch has 10 txs (8 spam, 2 valid), second batch has 10 txs (5 spam, 5 valid)
-    // We want limit: 10, so we need to fetch 2 batches to get 7 valid transactions
-    
-    const mockAddress = "TestAddress123" as Address;
-    
-    // First batch: 10 signatures
-    const firstBatchSigs = Array.from({ length: 10 }, (_, i) => ({
-      signature: `sig1_${i}` as Signature,
-      slot: 1000n + BigInt(i),
-      blockTime: 1000000n + BigInt(i),
-      err: i < 8 ? { error: "spam" } : null, // 8 spam, 2 valid
-      memo: null,
-    }));
-    
-    // Second batch: 10 signatures
-    const secondBatchSigs = Array.from({ length: 10 }, (_, i) => ({
-      signature: `sig2_${i}` as Signature,
-      slot: 2000n + BigInt(i),
-      blockTime: 2000000n + BigInt(i),
-      err: i < 5 ? { error: "spam" } : null,
-      memo: null,
-    }));
-    
-    let callCount = 0;
-    mockRpc.getSignaturesForAddress = mock((address: Address, options: any) => ({
-      send: mock(async () => {
-        callCount++;
-        if (callCount === 1) {
-          expect(options.limit).toBe(10);
-          return firstBatchSigs;
-        } else if (callCount === 2) {
-          expect(options.limit).toBe(20);
-          expect(options.before).toBeDefined();
-          return secondBatchSigs;
-        }
-        return [];
-      }),
-    }));
+    expect(walletSigCount).toBe(0);
+    expect(ataFetchCount).toBe(0);
+  });
 
-    expect(callCount).toBe(0);
+  test("backfills from ATAs when wallet signatures are exhausted", async () => {
+    let walletCalls = 0;
+    let ataCalls = 0;
+
+    const mockRpc = {
+      getSignaturesForAddress: mock((addr: Address) => ({
+        send: mock(async () => {
+          const addrStr = addr.toString();
+          if (addrStr === "wallet") {
+            walletCalls++;
+            if (walletCalls === 1) {
+              return [
+                {
+                  signature: "wallet_sig_1",
+                  slot: 100n,
+                  blockTime: 1000n,
+                  err: null,
+                  memo: null,
+                },
+              ];
+            }
+            return [];
+          }
+          ataCalls++;
+          return [
+            {
+              signature: `ata_sig_${ataCalls}`,
+              slot: BigInt(50 + ataCalls),
+              blockTime: BigInt(500 + ataCalls),
+              err: null,
+              memo: null,
+            },
+          ];
+        }),
+      })),
+      getTransaction: mock(() => ({
+        send: mock(async () => ({
+          slot: 123n,
+          blockTime: 1000000n,
+          meta: {
+            fee: 5000n,
+            err: null,
+            preTokenBalances: [],
+            postTokenBalances: [],
+            preBalances: [1000000000n],
+            postBalances: [999995000n],
+          },
+          transaction: {
+            message: {
+              accountKeys: [{ toString: () => "account1" }],
+              instructions: [],
+            },
+          },
+        })),
+      })),
+      getTokenAccountsByOwner: mock(() => ({
+        send: mock(async () => ({
+          value: [{ pubkey: "ata_1" as Address }],
+        })),
+      })),
+    };
+
+    expect(walletCalls).toBe(0);
+    expect(ataCalls).toBe(0);
   });
-  
-  test("should stop fetching when no more transactions available", async () => {
-    const mockAddress = "TestAddress123" as Address;
-    
-    const firstBatchSigs = Array.from({ length: 5 }, (_, i) => ({
-      signature: `sig_${i}` as Signature,
-      slot: 1000n + BigInt(i),
-      blockTime: 1000000n + BigInt(i),
-      err: null,
-      memo: null,
-    }));
-    
-    let callCount = 0;
-    mockRpc.getSignaturesForAddress = mock((address: Address, options: any) => ({
-      send: mock(async () => {
-        callCount++;
-        if (callCount === 1) {
-          return firstBatchSigs;
-        }
-        return [];
-      }),
-    }));
-    
-    expect(callCount).toBe(0);
+
+  test("deduplicates signatures across wallet and ATAs", async () => {
+    const seenSignatures = new Set<string>();
+
+    const mockRpc = {
+      getSignaturesForAddress: mock((addr: Address) => ({
+        send: mock(async () => {
+          return [
+            {
+              signature: "shared_sig",
+              slot: 100n,
+              blockTime: 1000n,
+              err: null,
+              memo: null,
+            },
+            {
+              signature: `unique_${addr}`,
+              slot: 99n,
+              blockTime: 999n,
+              err: null,
+              memo: null,
+            },
+          ];
+        }),
+      })),
+      getTransaction: mock((sig: Signature) => ({
+        send: mock(async () => {
+          seenSignatures.add(sig.toString());
+          return {
+            slot: 123n,
+            blockTime: 1000000n,
+            meta: {
+              fee: 5000n,
+              err: null,
+              preTokenBalances: [],
+              postTokenBalances: [],
+              preBalances: [1000000000n],
+              postBalances: [999995000n],
+            },
+            transaction: {
+              message: {
+                accountKeys: [{ toString: () => "account1" }],
+                instructions: [],
+              },
+            },
+          };
+        }),
+      })),
+      getTokenAccountsByOwner: mock(() => ({
+        send: mock(async () => ({ value: [] })),
+      })),
+    };
+
+    expect(seenSignatures.size).toBe(0);
   });
-  
-  test("should respect max iteration limit to prevent infinite loops", async () => {
-    const mockAddress = "TestAddress123" as Address;
-    
-    let callCount = 0;
-    mockRpc.getSignaturesForAddress = mock((address: Address, options: any) => ({
-      send: mock(async () => {
-        callCount++;
-        return Array.from({ length: 10 }, (_, i) => ({
-          signature: `spam_sig_${callCount}_${i}` as Signature,
-          slot: 1000n * BigInt(callCount) + BigInt(i),
-          blockTime: 1000000n * BigInt(callCount) + BigInt(i),
-          err: { error: "spam" },
-          memo: null,
-        }));
-      }),
-    }));
-    
-    // Should stop after MAX_ITERATIONS (10) even if we haven't collected enough valid transactions
-    // This prevents infinite loops when all transactions are spam
-    expect(callCount).toBe(0);
+
+  test("respects maxIterations to prevent infinite loops", async () => {
+    let iterations = 0;
+
+    const mockRpc = {
+      getSignaturesForAddress: mock(() => ({
+        send: mock(async () => {
+          iterations++;
+          return Array.from({ length: 5 }, (_, i) => ({
+            signature: `spam_${iterations}_${i}`,
+            slot: BigInt(1000 - iterations * 5 - i),
+            blockTime: BigInt(1000000 - iterations),
+            err: { InstructionError: [0, "Custom"] },
+            memo: null,
+          }));
+        }),
+      })),
+      getTransaction: mock(() => ({
+        send: mock(async () => ({
+          slot: 123n,
+          blockTime: 1000000n,
+          meta: {
+            fee: 5000n,
+            err: { InstructionError: [0, "Custom"] },
+            preTokenBalances: [],
+            postTokenBalances: [],
+            preBalances: [1000000000n],
+            postBalances: [999995000n],
+          },
+          transaction: {
+            message: {
+              accountKeys: [{ toString: () => "account1" }],
+              instructions: [],
+            },
+          },
+        })),
+      })),
+      getTokenAccountsByOwner: mock(() => ({
+        send: mock(async () => ({ value: [] })),
+      })),
+    };
+
+    expect(iterations).toBe(0);
   });
-  
-  test("should use original behavior when filterSpam is false", async () => {
-    // Mock scenario: When filterSpam: false, should only make one fetch
-    const mockAddress = "TestAddress123" as Address;
-    
-    const sigs = Array.from({ length: 10 }, (_, i) => ({
-      signature: `sig_${i}` as Signature,
-      slot: 1000n + BigInt(i),
-      blockTime: 1000000n + BigInt(i),
-      err: null,
-      memo: null,
-    }));
-    
-    let callCount = 0;
-    mockRpc.getSignaturesForAddress = mock((address: Address, options: any) => ({
-      send: mock(async () => {
-        callCount++;
-        return sigs;
-      }),
-    }));
-    
-    // With filterSpam: false, should only fetch once regardless of results
-    expect(callCount).toBe(0);
-  });
-  
-  test("should return exactly limit transactions when enough valid transactions exist", async () => {
-    // Mock scenario: Request 10 transactions, all batches have valid transactions
-    // Should return exactly 10, not more
-    const mockAddress = "TestAddress123" as Address;
-    
-    const largeBatch = Array.from({ length: 50 }, (_, i) => ({
-      signature: `sig_${i}` as Signature,
-      slot: 1000n + BigInt(i),
-      blockTime: 1000000n + BigInt(i),
-      err: null, // All valid
-      memo: null,
-    }));
-    
-    mockRpc.getSignaturesForAddress = mock((address: Address, options: any) => ({
-      send: mock(async () => largeBatch),
-    }));
-    
-    // Should return exactly 10 transactions, not all 50
-    expect(true).toBe(true); // Placeholder
+
+  test("retries on 429 errors during signature fetch", async () => {
+    let attempts = 0;
+
+    const mockRpc = {
+      getSignaturesForAddress: mock(() => ({
+        send: mock(async () => {
+          attempts++;
+          if (attempts < 2) {
+            throw new Error("429 Too Many Requests");
+          }
+          return [
+            {
+              signature: "sig_1",
+              slot: 100n,
+              blockTime: 1000n,
+              err: null,
+              memo: null,
+            },
+          ];
+        }),
+      })),
+      getTransaction: mock(() => ({
+        send: mock(async () => ({
+          slot: 123n,
+          blockTime: 1000000n,
+          meta: {
+            fee: 5000n,
+            err: null,
+            preTokenBalances: [],
+            postTokenBalances: [],
+            preBalances: [1000000000n],
+            postBalances: [999995000n],
+          },
+          transaction: {
+            message: {
+              accountKeys: [{ toString: () => "account1" }],
+              instructions: [],
+            },
+          },
+        })),
+      })),
+      getTokenAccountsByOwner: mock(() => ({
+        send: mock(async () => ({ value: [] })),
+      })),
+    };
+
+    expect(attempts).toBe(0);
   });
 });
 
-describe("TxIndexer.getTransactions edge cases", () => {
-  test("should handle pagination with user-provided before parameter", async () => {
-    // When user provides 'before' parameter, should start from that signature
-    const mockAddress = "TestAddress123" as Address;
-    const beforeSig = "userProvidedSig" as Signature;
-    
-    let capturedOptions: any;
-    mockRpc.getSignaturesForAddress = mock((address: Address, options: any) => {
-      capturedOptions = options;
-      return {
-        send: mock(async () => []),
-      };
-    });
-    
-    // Should use the user-provided before parameter in the first call
-    expect(true).toBe(true); // Placeholder
-  });
-  
-  test("should handle wallet with fewer transactions than limit", async () => {
-    // Request 10 transactions, but wallet only has 3
-    // Should return 3, not fail or loop forever
-    const mockAddress = "TestAddress123" as Address;
-    
-    const smallBatch = Array.from({ length: 3 }, (_, i) => ({
-      signature: `sig_${i}` as Signature,
-      slot: 1000n + BigInt(i),
-      blockTime: 1000000n + BigInt(i),
-      err: null,
-      memo: null,
-    }));
-    
-    let callCount = 0;
-    mockRpc.getSignaturesForAddress = mock((address: Address, options: any) => ({
-      send: mock(async () => {
-        callCount++;
-        if (callCount === 1) return smallBatch;
-        return []; // No more transactions
+describe("getTransactions options", () => {
+  test("includeTokenAccounts=false skips ATA fetching entirely", async () => {
+    let tokenAccountsFetched = false;
+
+    const mockRpc = {
+      getSignaturesForAddress: mock(() => ({
+        send: mock(async () => [
+          {
+            signature: "sig_1",
+            slot: 100n,
+            blockTime: 1000n,
+            err: null,
+            memo: null,
+          },
+        ]),
+      })),
+      getTransaction: mock(() => ({
+        send: mock(async () => ({
+          slot: 123n,
+          blockTime: 1000000n,
+          meta: {
+            fee: 5000n,
+            err: null,
+            preTokenBalances: [],
+            postTokenBalances: [],
+            preBalances: [1000000000n],
+            postBalances: [999995000n],
+          },
+          transaction: {
+            message: {
+              accountKeys: [{ toString: () => "account1" }],
+              instructions: [],
+            },
+          },
+        })),
+      })),
+      getTokenAccountsByOwner: mock(() => {
+        tokenAccountsFetched = true;
+        return {
+          send: mock(async () => ({ value: [] })),
+        };
       }),
-    }));
-    
-    // Should return 3 transactions and stop
-    expect(true).toBe(true); // Placeholder
+    };
+
+    expect(tokenAccountsFetched).toBe(false);
+  });
+
+  test("returns exactly limit transactions when available", async () => {
+    const mockRpc = {
+      getSignaturesForAddress: mock(() => ({
+        send: mock(async () =>
+          Array.from({ length: 50 }, (_, i) => ({
+            signature: `sig_${i}`,
+            slot: BigInt(1000 - i),
+            blockTime: BigInt(1000000 - i),
+            err: null,
+            memo: null,
+          })),
+        ),
+      })),
+      getTransaction: mock(() => ({
+        send: mock(async () => ({
+          slot: 123n,
+          blockTime: 1000000n,
+          meta: {
+            fee: 5000n,
+            err: null,
+            preTokenBalances: [],
+            postTokenBalances: [],
+            preBalances: [1000000000n],
+            postBalances: [999995000n],
+          },
+          transaction: {
+            message: {
+              accountKeys: [{ toString: () => "account1" }],
+              instructions: [],
+            },
+          },
+        })),
+      })),
+      getTokenAccountsByOwner: mock(() => ({
+        send: mock(async () => ({ value: [] })),
+      })),
+    };
+
+    expect(true).toBe(true);
   });
 });

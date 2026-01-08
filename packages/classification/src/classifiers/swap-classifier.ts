@@ -11,26 +11,38 @@ import { isDexProtocolById } from "../protocols/detector";
  *
  * The best pair is determined by:
  * 1. Must have different token symbols (otherwise it's not a swap)
- * 2. Prefer the pair with the largest total value (to avoid picking up dust/fees)
+ * 2. Prefer non-SOL tokens over SOL (SOL is usually just for fees)
+ * 3. Prefer the pair with the largest combined value
  *
  * For now, we use amountUi as a proxy for value since we don't have USD prices.
- * This works well because:
- * - The main swap tokens typically have much larger amounts than dust
- * - A 2000 USDC swap will always beat a 0.0002 SOL fee
  */
 function findSwapPair(
   tokensOut: TxLeg[],
   tokensIn: TxLeg[],
 ): { initiatorOut: TxLeg; initiatorIn: TxLeg } | null {
   let bestPair: { initiatorOut: TxLeg; initiatorIn: TxLeg } | null = null;
-  let bestScore = 0;
+  let bestScore = -Infinity;
 
   for (const out of tokensOut) {
     for (const inLeg of tokensIn) {
       if (out.amount.token.symbol !== inLeg.amount.token.symbol) {
-        // Score by the larger of the two amounts (in UI units)
-        // This helps identify the "main" swap vs dust movements
-        const score = Math.max(out.amount.amountUi, inLeg.amount.amountUi);
+        // Calculate score based on combined amounts
+        let score = out.amount.amountUi + inLeg.amount.amountUi;
+
+        // Heavily penalize pairs involving tiny SOL amounts (likely fees)
+        // SOL is often used for fees, so deprioritize small SOL movements
+        const outIsTinySol =
+          (out.amount.token.symbol === "SOL" ||
+            out.amount.token.symbol === "WSOL") &&
+          out.amount.amountUi < 0.01;
+        const inIsTinySol =
+          (inLeg.amount.token.symbol === "SOL" ||
+            inLeg.amount.token.symbol === "WSOL") &&
+          inLeg.amount.amountUi < 0.01;
+
+        if (outIsTinySol || inIsTinySol) {
+          score -= 1000000; // Large penalty to deprioritize fee-like SOL movements
+        }
 
         if (score > bestScore) {
           bestScore = score;
@@ -90,27 +102,26 @@ export class SwapClassifier implements Classifier {
     if (walletAddress) {
       const walletAccountId = `external:${walletAddress}`;
 
-      const walletOut = legs.find(
+      // Get all wallet's outgoing and incoming legs
+      const walletTokensOut = legs.filter(
         (leg) =>
           leg.accountId === walletAccountId &&
           leg.side === "debit" &&
           (leg.role === "sent" || leg.role === "protocol_deposit"),
       );
 
-      const walletIn = legs.find(
+      const walletTokensIn = legs.filter(
         (leg) =>
           leg.accountId === walletAccountId &&
           leg.side === "credit" &&
           (leg.role === "received" || leg.role === "protocol_withdraw"),
       );
 
-      if (
-        walletOut &&
-        walletIn &&
-        walletOut.amount.token.symbol !== walletIn.amount.token.symbol
-      ) {
-        tokenOut = walletOut;
-        tokenIn = walletIn;
+      // Use the same best-pair logic to find the main swap tokens
+      const walletSwapPair = findSwapPair(walletTokensOut, walletTokensIn);
+      if (walletSwapPair) {
+        tokenOut = walletSwapPair.initiatorOut;
+        tokenIn = walletSwapPair.initiatorIn;
         perspectiveWallet = walletAddress;
       }
     }

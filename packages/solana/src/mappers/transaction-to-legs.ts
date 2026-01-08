@@ -32,15 +32,21 @@ function isDexProtocol(protocol: ProtocolInfo | null | undefined): boolean {
  * detecting and accounting for network fees. Each leg represents a debit or credit
  * for a specific account and token, enabling transaction classification and validation.
  *
- * All accounts are tagged as "external:" - the classification layer determines
- * the transaction type and direction from the initiator's (fee payer's) perspective.
+ * For DEX protocols, accounts are tagged based on their role:
+ * - Fee payer and wallet address are tagged as "external:" (user-controlled)
+ * - Other accounts are tagged as "protocol:" (DEX pool/program accounts)
  *
  * @param tx - Raw transaction data with balance changes
+ * @param walletAddress - Optional wallet address for perspective-aware tagging
  * @returns Array of transaction legs representing all balance movements
  */
-export function transactionToLegs(tx: RawTransaction): TxLeg[] {
+export function transactionToLegs(
+  tx: RawTransaction,
+  walletAddress?: string,
+): TxLeg[] {
   const legs: TxLeg[] = [];
-  const feePayer = tx.accountKeys?.[0]?.toLowerCase();
+  const feePayer = tx.accountKeys?.[0];
+  // Wallet address is kept as-is since Solana addresses are case-sensitive (base58)
 
   const solChanges = extractSolBalanceChanges(tx);
   let totalSolDebits = 0n;
@@ -100,11 +106,14 @@ export function transactionToLegs(tx: RawTransaction): TxLeg[] {
 
     let accountId: string;
     if (isDexProtocol(tx.protocol)) {
-      const isFeePayer = feePayer && change.owner?.toLowerCase() === feePayer;
-      if (isFeePayer) {
+      const isFeePayer = feePayer && change.owner === feePayer;
+      const isWallet = walletAddress && change.owner === walletAddress;
+
+      // Tag as external if the owner is the fee payer OR the target wallet
+      if (isFeePayer || isWallet) {
         accountId = buildAccountId({
           type: "external",
-          address: change.owner || feePayer,
+          address: change.owner || feePayer || walletAddress || "",
         });
       } else {
         accountId = buildAccountId({
@@ -129,7 +138,7 @@ export function transactionToLegs(tx: RawTransaction): TxLeg[] {
         amountRaw: change.change.raw.replace("-", ""),
         amountUi: Math.abs(change.change.ui),
       },
-      role: determineTokenRole(change, tx, feePayer),
+      role: determineTokenRole(change, tx, feePayer, walletAddress),
     });
   }
 
@@ -171,19 +180,21 @@ function determineSolRole(
  * @param change - Token balance change for an account
  * @param tx - Raw transaction for protocol context
  * @param feePayer - Fee payer address
+ * @param walletAddress - Optional target wallet address for perspective
  * @returns The role of this token balance change
  */
 function determineTokenRole(
   change: TokenBalanceChange,
   tx: RawTransaction,
   feePayer?: string,
+  walletAddress?: string,
 ): TxLegRole {
-  const isFeePayer = feePayer
-    ? change.owner?.toLowerCase() === feePayer
-    : false;
+  const isFeePayer = feePayer ? change.owner === feePayer : false;
+  const isWallet = walletAddress ? change.owner === walletAddress : false;
   const isPositive = change.change.ui > 0;
 
-  if (isFeePayer) {
+  // If the owner is the fee payer or target wallet, use sent/received roles
+  if (isFeePayer || isWallet) {
     return isPositive ? "received" : "sent";
   }
 

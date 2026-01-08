@@ -53,6 +53,12 @@ export function isSpamTransaction(
     return true;
   }
 
+  // Skip dust check for swaps - they involve meaningful token exchanges
+  // regardless of individual leg amounts
+  if (classification.primaryType === "swap") {
+    return false;
+  }
+
   if (isDustTransaction(classification, cfg)) {
     return true;
   }
@@ -104,8 +110,19 @@ function isWalletDustOnly(
   // Find all legs involving our wallet
   const walletLegs = legs.filter((leg) => leg.accountId === walletAccountId);
 
+  // If no wallet legs found, don't flag as spam - could be a swap where
+  // wallet interacts via different account structure
   if (walletLegs.length === 0) {
-    return false; // Not involved at all - shouldn't happen but be safe
+    return false;
+  }
+
+  // For swaps, the wallet both sends and receives different tokens
+  // This is NOT spam, so check if we have meaningful activity on both sides
+  const hasDebit = walletLegs.some((leg) => leg.side === "debit");
+  const hasCredit = walletLegs.some((leg) => leg.side === "credit");
+  if (hasDebit && hasCredit) {
+    // Wallet is actively participating (likely a swap) - not spam
+    return false;
   }
 
   // Check if wallet sent anything meaningful (then it's not a dust airdrop)

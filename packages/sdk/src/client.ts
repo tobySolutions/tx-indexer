@@ -408,13 +408,20 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         const walletAddressStr = walletAddress.toString();
         const classified = transactions.map((tx) => {
           tx.protocol = detectProtocol(tx.programIds);
-          const legs = transactionToLegs(tx);
+          const legs = transactionToLegs(tx, walletAddressStr);
           const classification = classifyTransaction(
             legs,
             tx,
             walletAddressStr,
           );
           return { tx, classification, legs };
+        });
+
+        // Sort by blockTime descending (most recent first)
+        classified.sort((a, b) => {
+          const timeA = a.tx.blockTime ? Number(a.tx.blockTime) : 0;
+          const timeB = b.tx.blockTime ? Number(b.tx.blockTime) : 0;
+          return timeB - timeA;
         });
 
         return enrichBatch(classified);
@@ -451,7 +458,7 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
 
         const classified = transactions.map((tx) => {
           tx.protocol = detectProtocol(tx.programIds);
-          const legs = transactionToLegs(tx);
+          const legs = transactionToLegs(tx, walletAddressStr);
           const classification = classifyTransaction(
             legs,
             tx,
@@ -474,6 +481,13 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
           break;
         }
       }
+
+      // Sort by blockTime descending (most recent first) before slicing
+      accumulated.sort((a, b) => {
+        const timeA = a.tx.blockTime ? Number(a.tx.blockTime) : 0;
+        const timeB = b.tx.blockTime ? Number(b.tx.blockTime) : 0;
+        return timeB - timeA;
+      });
 
       const result = accumulated.slice(0, limit);
       return enrichBatch(result);

@@ -1,8 +1,8 @@
 [
   {
-    "name": "Full SDK (all exports)",
+    "name": "Main SDK (createIndexer + errors)",
     "path": "src/index.ts",
-    "import": "{ createIndexer, classifyTransaction, fetchTransaction, transactionToLegs }",
+    "import": "{ createIndexer, RateLimitError, isRetryableError }",
     "limit": "25 KB"
   },
   {
@@ -12,22 +12,21 @@
     "limit": "25 KB"
   },
   {
-    "name": "Tree-shaken: classifyTransaction",
-    "path": "src/index.ts",
+    "name": "Advanced: classifyTransaction",
+    "path": "src/advanced.ts",
     "import": "{ classifyTransaction }",
     "limit": "8 KB"
   },
   {
-    "name": "Tree-shaken: fetchTransaction",
-    "path": "src/index.ts",
+    "name": "Advanced: fetchTransaction",
+    "path": "src/advanced.ts",
     "import": "{ fetchTransaction }",
-    "limit": "8 KB"
+    "limit": "10 KB"
   },
   {
-    "name": "Tree-shaken: transactionToLegs",
-    "path": "src/index.ts",
+    "name": "Advanced: transactionToLegs",
+    "path": "src/advanced.ts",
     "import": "{ transactionToLegs }",
-    "limit": "8 KB"
+    "limit": "10 KB"
   }
 ]
-

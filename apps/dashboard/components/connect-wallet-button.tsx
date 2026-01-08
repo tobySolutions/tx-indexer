@@ -26,8 +26,27 @@ export function ConnectWalletButton() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isReAuthenticating, setIsReAuthenticating] = useState(false);
 
-  // Track if we initiated the connection (to trigger auto sign-in)
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const pendingSignInRef = useRef(false);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
 
   const isConnected = wallet.status === "connected";
   const address = isConnected
@@ -126,7 +145,7 @@ export function ConnectWalletButton() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -163,7 +182,7 @@ export function ConnectWalletButton() {
       </button>
 
       {open && !isConnecting && (
-        <div className="absolute right-0 z-10 mt-2 w-full min-w-[240px] rounded-lg border border-neutral-200 bg-white shadow-lg">
+        <div className="absolute right-0 z-10 mt-2 w-full min-w-[240px] rounded-lg border border-neutral-200 bg-white shadow-lg animate-dropdown-in">
           {isConnected ? (
             <div className="p-2 space-y-2">
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">

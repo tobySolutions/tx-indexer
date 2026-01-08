@@ -1,6 +1,7 @@
 import type { Address, Signature } from "@solana/kit";
 import {
   createSolanaClient,
+  parseAddress,
   parseSignature,
   type SolanaClient,
 } from "@tx-indexer/solana/rpc/client";
@@ -38,8 +39,25 @@ import {
   fetchNftMetadataBatch,
   type NftMetadata,
 } from "./nft";
+import { ConfigurationError } from "./errors";
 
 const NFT_TRANSACTION_TYPES = ["nft_mint", "nft_purchase", "nft_sale"] as const;
+
+/**
+ * Normalizes an address input to the branded Address type.
+ * If already an Address, returns as-is. If string, parses it.
+ */
+function normalizeAddress(input: AddressInput): Address {
+  return typeof input === "string" ? parseAddress(input) : input;
+}
+
+/**
+ * Normalizes a signature input to the branded Signature type.
+ * If already a Signature, returns as-is. If string, parses it.
+ */
+function normalizeSignature(input: SignatureInput): Signature {
+  return typeof input === "string" ? parseSignature(input) : input;
+}
 
 async function enrichTokenMetadata(
   tokenFetcher: TokenFetcher,
@@ -232,28 +250,107 @@ export interface ClassifiedTransaction {
   legs: ReturnType<typeof transactionToLegs>;
 }
 
+/**
+ * Input type that accepts both branded Address type and plain string.
+ * Strings are automatically parsed and validated.
+ */
+export type AddressInput = Address | string;
+
+/**
+ * Input type that accepts both branded Signature type and plain string.
+ * Strings are automatically parsed and validated.
+ */
+export type SignatureInput = Signature | string;
+
 export interface TxIndexer {
   rpc: ReturnType<typeof createSolanaClient>["rpc"];
 
+  /**
+   * Get the balance of a wallet including SOL and token balances.
+   *
+   * @param walletAddress - Wallet address (string or Address type)
+   * @param tokenMints - Optional list of specific token mints to include
+   * @returns Wallet balance with SOL and token amounts
+   *
+   * @example
+   * ```typescript
+   * // With string
+   * const balance = await indexer.getBalance("YourWalletAddress...");
+   *
+   * // With Address type
+   * import { parseAddress } from "tx-indexer";
+   * const balance = await indexer.getBalance(parseAddress("YourWalletAddress..."));
+   * ```
+   */
   getBalance(
-    walletAddress: Address,
+    walletAddress: AddressInput,
     tokenMints?: readonly string[],
   ): Promise<WalletBalance>;
 
+  /**
+   * Get classified transactions for a wallet.
+   *
+   * @param walletAddress - Wallet address (string or Address type)
+   * @param options - Pagination and filtering options
+   * @returns Array of classified transactions, newest first
+   *
+   * @example
+   * ```typescript
+   * const txs = await indexer.getTransactions("YourWalletAddress...", {
+   *   limit: 10,
+   *   filterSpam: true,
+   * });
+   * ```
+   */
   getTransactions(
-    walletAddress: Address,
+    walletAddress: AddressInput,
     options?: GetTransactionsOptions,
   ): Promise<ClassifiedTransaction[]>;
 
+  /**
+   * Get a single classified transaction by signature.
+   *
+   * @param signature - Transaction signature (string or Signature type)
+   * @param options - Enrichment options
+   * @returns Classified transaction or null if not found
+   *
+   * @example
+   * ```typescript
+   * const tx = await indexer.getTransaction("5abc123...");
+   * if (tx) {
+   *   console.log(tx.classification.primaryType);
+   * }
+   * ```
+   */
   getTransaction(
-    signature: Signature,
+    signature: SignatureInput,
     options?: GetTransactionOptions,
   ): Promise<ClassifiedTransaction | null>;
 
-  getRawTransaction(signature: Signature): Promise<RawTransaction | null>;
+  /**
+   * Get raw transaction data without classification.
+   *
+   * @param signature - Transaction signature (string or Signature type)
+   * @returns Raw transaction or null if not found
+   */
+  getRawTransaction(signature: SignatureInput): Promise<RawTransaction | null>;
 
+  /**
+   * Get NFT metadata from DAS RPC.
+   *
+   * @param mintAddress - NFT mint address
+   * @returns NFT metadata or null if not found
+   * @throws Error if rpcUrl was not provided (using client option)
+   */
   getNftMetadata(mintAddress: string): Promise<NftMetadata | null>;
 
+  /**
+   * Get NFT metadata for multiple mints in batch.
+   *
+   * @param mintAddresses - Array of NFT mint addresses
+   * @returns Map of mint address to metadata
+   * @throws Error if rpcUrl was not provided (using client option)
+   */
   getNftMetadataBatch(
     mintAddresses: string[],
   ): Promise<Map<string, NftMetadata>>;
@@ -272,14 +369,15 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
     rpc: client.rpc,
 
     async getBalance(
-      walletAddress: Address,
+      walletAddress: AddressInput,
       tokenMints?: readonly string[],
     ): Promise<WalletBalance> {
-      return fetchWalletBalance(client.rpc, walletAddress, tokenMints);
+      const address = normalizeAddress(walletAddress);
+      return fetchWalletBalance(client.rpc, address, tokenMints);
     },
 
     async getTransactions(
-      walletAddress: Address,
+      walletAddress: AddressInput,
       options: GetTransactionsOptions = {},
     ): Promise<ClassifiedTransaction[]> {
       const {
@@ -299,7 +397,8 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         retry,
       } = options;
 
-      const walletAddressStr = walletAddress.toString();
+      const normalizedAddress = normalizeAddress(walletAddress);
+      const walletAddressStr = normalizedAddress.toString();
       const seenSignatures = new Set<string>();
       let cachedTokenAccounts: Address[] | null = null;
 
@@ -434,7 +533,7 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
           if (!walletExhausted) {
             const walletSigs = await fetchWalletSignaturesPaged(
               client.rpc,
-              walletAddress,
+              normalizedAddress,
               { pageSize, before: currentBefore, until, retry },
             );
 
@@ -471,7 +570,7 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
             if (!cachedTokenAccounts) {
               cachedTokenAccounts = await fetchWalletTokenAccounts(
                 client.rpc,
-                walletAddress,
+                normalizedAddress,
                 retry,
               );
             }
@@ -532,7 +631,7 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
     },
 
     async getTransaction(
-      signature: Signature,
+      signature: SignatureInput,
       options: GetTransactionOptions = {},
     ): Promise<ClassifiedTransaction | null> {
       const {
@@ -540,7 +639,8 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         enrichTokenMetadata: enrichTokens = true,
       } = options;
 
-      const tx = await fetchTransaction(client.rpc, signature);
+      const normalizedSig = normalizeSignature(signature);
+      const tx = await fetchTransaction(client.rpc, normalizedSig);
 
       if (!tx) {
         return null;
@@ -565,14 +665,17 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
     },
 
     async getRawTransaction(
-      signature: Signature,
+      signature: SignatureInput,
     ): Promise<RawTransaction | null> {
-      return fetchTransaction(client.rpc, signature);
+      const normalizedSig = normalizeSignature(signature);
+      return fetchTransaction(client.rpc, normalizedSig);
     },
 
     async getNftMetadata(mintAddress: string): Promise<NftMetadata | null> {
       if (!rpcUrl) {
-        throw new Error("getNftMetadata requires rpcUrl to be set");
+        throw new ConfigurationError(
+          "getNftMetadata requires rpcUrl to be set. Use createIndexer({ rpcUrl }) instead of createIndexer({ client }).",
+        );
       }
       return fetchNftMetadata(rpcUrl, mintAddress);
     },
@@ -581,7 +684,9 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
       mintAddresses: string[],
     ): Promise<Map<string, NftMetadata>> {
       if (!rpcUrl) {
-        throw new Error("getNftMetadataBatch requires rpcUrl to be set");
+        throw new ConfigurationError(
+          "getNftMetadataBatch requires rpcUrl to be set. Use createIndexer({ rpcUrl }) instead of createIndexer({ client }).",
+        );
       }
       return fetchNftMetadataBatch(rpcUrl, mintAddresses);
     },

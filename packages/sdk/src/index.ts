@@ -1,3 +1,25 @@
+/**
+ * tx-indexer SDK - Solana transaction indexing and classification
+ *
+ * This is the main entry point with stable, production-ready APIs.
+ * For advanced/low-level APIs, import from "tx-indexer/advanced".
+ *
+ * @example
+ * ```typescript
+ * import { createIndexer } from "tx-indexer";
+ *
+ * const indexer = createIndexer({ rpcUrl: "https://api.mainnet-beta.solana.com" });
+ * const txs = await indexer.getTransactions("YourWalletAddress...", { limit: 10 });
+ * ```
+ *
+ * @module tx-indexer
+ * @stability stable
+ */
+
+// ============================================================================
+// Core Client API
+// ============================================================================
+
 export {
   createIndexer,
   type TxIndexer,
@@ -6,73 +28,25 @@ export {
   type GetTransactionOptions,
   type ClassifiedTransaction,
   type FetchTransactionsConfig,
+  type AddressInput,
+  type SignatureInput,
 } from "./client";
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
 
 export type * from "./types";
 
-export {
-  createSolanaClient,
-  parseAddress,
-  parseSignature,
-  type IndexerRpcApi,
-  type SolanaClient,
-} from "@tx-indexer/solana/rpc/client";
+// ============================================================================
+// Address/Signature Parsing (required for typed API)
+// ============================================================================
 
-export {
-  fetchWalletBalance,
-  type WalletBalance,
-  type TokenAccountBalance,
-} from "@tx-indexer/solana/fetcher/balances";
+export { parseAddress, parseSignature } from "@tx-indexer/solana/rpc/client";
 
-export {
-  fetchWalletSignatures,
-  fetchWalletTokenAccounts,
-  fetchWalletAndTokenSignatures,
-  fetchTransaction,
-  fetchTransactionsBatch,
-  type FetchBatchOptions,
-  type FetchTransactionOptions,
-} from "@tx-indexer/solana/fetcher/transactions";
-
-export { type RetryConfig } from "@tx-indexer/solana/rpc/retry";
-
-export { transactionToLegs } from "@tx-indexer/solana/mappers/transaction-to-legs";
-
-export {
-  classifyTransaction,
-  type ClassificationService,
-} from "@tx-indexer/classification/engine/classification-service";
-
-export { detectProtocol } from "@tx-indexer/classification/protocols/detector";
-
-export {
-  isSpamTransaction,
-  filterSpamTransactions,
-  type SpamFilterConfig,
-} from "@tx-indexer/core/tx/spam-filter";
-
-export {
-  validateLegsBalance,
-  groupLegsByAccount,
-  groupLegsByToken,
-  type LegBalanceResult,
-  type LegTokenBalance,
-} from "@tx-indexer/core/tx/leg-validation";
-
-export {
-  buildAccountId,
-  parseAccountId,
-  type AccountIdType,
-  type BuildAccountIdParams,
-  type ParsedAccountId,
-} from "@tx-indexer/core/tx/account-id";
-
-export {
-  extractMemo,
-  parseSolanaPayMemo,
-  isSolanaPayTransaction,
-  type SolanaPayMemo,
-} from "@tx-indexer/solana/mappers/memo-parser";
+// ============================================================================
+// Token Registry (commonly needed for display)
+// ============================================================================
 
 export {
   KNOWN_TOKENS,
@@ -83,29 +57,10 @@ export {
   LIQUID_STAKING_TOKENS,
 } from "@tx-indexer/core/money/token-registry";
 
-export {
-  createTokenFetcher,
-  getDefaultTokenFetcher,
-  type TokenFetcher,
-  type TokenFetcherOptions,
-} from "@tx-indexer/core/money/token-fetcher";
+// ============================================================================
+// JSON Serialization (for server-side usage)
+// ============================================================================
 
-export {
-  JUPITER_V6_PROGRAM_ID,
-  JUPITER_V4_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-  SYSTEM_PROGRAM_ID,
-  SPL_MEMO_PROGRAM_ID,
-  detectFacilitator,
-} from "@tx-indexer/solana/constants/program-ids";
-
-export {
-  fetchNftMetadata,
-  fetchNftMetadataBatch,
-  type NftMetadata,
-} from "./nft";
-
-// JSON-safe serialization types and helpers
 export {
   toJsonClassifiedTransaction,
   toJsonClassifiedTransactions,
@@ -120,3 +75,20 @@ export {
   type JsonTxLeg,
   type JsonClassifiedTransaction,
 } from "./json-types";
+
+// ============================================================================
+// Errors
+// ============================================================================
+
+export {
+  TxIndexerError,
+  RateLimitError,
+  RpcError,
+  NetworkError,
+  InvalidInputError,
+  ConfigurationError,
+  NftMetadataError,
+  isTxIndexerError,
+  isRetryableError,
+  wrapError,
+} from "./errors";

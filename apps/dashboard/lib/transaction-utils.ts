@@ -81,14 +81,13 @@ function getTransactionLabel(
   }
 }
 
+export interface TokenAmount {
+  token: { symbol: string; logoURI?: string };
+  amountUi: number;
+}
+
 export function formatAmountWithDirection(
-  amount:
-    | {
-        token: { symbol: string };
-        amountUi: number;
-      }
-    | null
-    | undefined,
+  amount: TokenAmount | null | undefined,
   direction: DirectionInfo,
 ): string {
   if (!amount) return "—";
@@ -97,15 +96,16 @@ export function formatAmountWithDirection(
 }
 
 export function formatSwapDetails(
-  primaryAmount:
-    | { token: { symbol: string }; amountUi: number }
-    | null
-    | undefined,
-  secondaryAmount:
-    | { token: { symbol: string }; amountUi: number }
-    | null
-    | undefined,
+  primaryAmount: TokenAmount | null | undefined,
+  secondaryAmount: TokenAmount | null | undefined,
 ): string | null {
   if (!primaryAmount || !secondaryAmount) return null;
   return `${primaryAmount.amountUi.toLocaleString()} ${primaryAmount.token.symbol} → ${secondaryAmount.amountUi.toLocaleString()} ${secondaryAmount.token.symbol}`;
+}
+
+export function getTokenFromAmount(
+  amount: TokenAmount | null | undefined,
+): { symbol: string; logoURI?: string } | null {
+  if (!amount) return null;
+  return amount.token;
 }

@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  env: {
-    RPC_URL: process.env.RPC_URL,
-  },
+  // No need to expose server env vars - they're automatically available in server components
+  // NEXT_PUBLIC_* vars are automatically exposed to the client
   transpilePackages: [
     "tx-indexer",
     "@tx-indexer/core",

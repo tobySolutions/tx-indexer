@@ -4,10 +4,10 @@ let _indexer: TxIndexer | null = null;
 
 export function getIndexer(): TxIndexer {
   if (!_indexer) {
-    if (!process.env.RPC_URL) {
-      throw new Error("RPC_URL environment variable is not set");
+    if (!process.env.SERVER_RPC_URL) {
+      throw new Error("SERVER_RPC_URL environment variable is not set");
     }
-    _indexer = createIndexer({ rpcUrl: process.env.RPC_URL });
+    _indexer = createIndexer({ rpcUrl: process.env.SERVER_RPC_URL });
   }
   return _indexer;
 }

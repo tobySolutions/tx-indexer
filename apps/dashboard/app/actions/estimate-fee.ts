@@ -46,11 +46,11 @@ async function getSolPrice(): Promise<number | null> {
  * Checks if a wallet has an existing USDC token account
  */
 async function hasUsdcTokenAccount(walletAddress: string): Promise<boolean> {
-  if (!process.env.RPC_URL) {
-    throw new Error("RPC_URL environment variable is not set");
+  if (!process.env.SERVER_RPC_URL) {
+    throw new Error("SERVER_RPC_URL environment variable is not set");
   }
 
-  const rpc = createSolanaRpc(process.env.RPC_URL);
+  const rpc = createSolanaRpc(process.env.SERVER_RPC_URL);
 
   try {
     const response = await rpc

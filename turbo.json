@@ -2,7 +2,8 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
   "globalEnv": [
-    "RPC_URL",
+    "SERVER_RPC_URL",
+    "NEXT_PUBLIC_RPC_URL",
     "SIGNATURE",
     "WALLET_ADDRESS",
     "JUPITER_API_KEY",

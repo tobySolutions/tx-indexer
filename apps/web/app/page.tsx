@@ -6,7 +6,7 @@ import { InstallCommand } from "@/components/install-command";
 import localFont from "next/font/local";
 
 const TX_SIGNATURE = signature(
-  "4cu2aBEviivATT9mQbu7xEjaDaGokKk3phGmcqMT3X9v5nUmPLjvCmtU4oTSeWYhGmc1ShSQEjykgvGVq81TBxsF"
+  "4cu2aBEviivATT9mQbu7xEjaDaGokKk3phGmcqMT3X9v5nUmPLjvCmtU4oTSeWYhGmc1ShSQEjykgvGVq81TBxsF",
 );
 
 const bitcountFont = localFont({
@@ -16,7 +16,7 @@ const bitcountFont = localFont({
 
 export default async function Page() {
   const { getTransaction } = createIndexer({
-    rpcUrl: process.env.RPC_URL!,
+    rpcUrl: process.env.SERVER_RPC_URL!,
   });
 
   const [transaction, solPrice] = await Promise.all([
@@ -59,8 +59,8 @@ export default async function Page() {
           >
             <span className="text-vibrant-red">{"//"}</span> receipt
           </h2>
-          <TransactionReceipt 
-            transaction={transaction} 
+          <TransactionReceipt
+            transaction={transaction}
             showViewFullTransaction={true}
             solPrice={solPrice}
           />

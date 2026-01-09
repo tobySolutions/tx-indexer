@@ -29,6 +29,7 @@ export function ReceiveDrawer({
 }: ReceiveDrawerProps) {
   const [amount, setAmount] = useState<string>("");
   const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   const parsedAmount = amount ? parseFloat(amount) : undefined;
   const solanaPayUrl = buildSolanaPayUrl(
@@ -40,7 +41,13 @@ export function ReceiveDrawer({
     if (isOpen) {
       setMounted(true);
       document.body.style.overflow = "hidden";
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setVisible(true);
+        });
+      });
     } else {
+      setVisible(false);
       document.body.style.overflow = "";
     }
 
@@ -61,8 +68,8 @@ export function ReceiveDrawer({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-50 transition-opacity duration-200",
-        isOpen ? "opacity-100" : "opacity-0 pointer-events-none",
+        "fixed inset-0 z-50 transition-opacity duration-300",
+        visible ? "opacity-100" : "opacity-0 pointer-events-none",
       )}
       onTransitionEnd={handleTransitionEnd}
     >
@@ -70,8 +77,8 @@ export function ReceiveDrawer({
 
       <div
         className={cn(
-          "absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white rounded-t-2xl transition-transform duration-200 ease-out",
-          isOpen ? "translate-y-0" : "translate-y-full",
+          "absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white rounded-t-2xl transition-transform duration-300 ease-out",
+          visible ? "translate-y-0" : "translate-y-full",
         )}
       >
         <div className="flex items-center justify-between p-4 border-b border-neutral-100">

@@ -3,16 +3,15 @@
 import { useWallet } from "@solana/react-hooks";
 import { useState } from "react";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { cn } from "@/lib/utils";
 import { PortfolioCard } from "@/components/portfolio-card";
-import { TransactionsList } from "@/components/transactions-list";
+import { TransactionsFeed } from "@/components/transactions-feed";
 import { SendTransferDrawer } from "@/components/send-transfer";
 import { TradeDrawer } from "@/components/trade";
 import {
   PortfolioCardSkeleton,
   TransactionsListSkeleton,
 } from "@/components/skeletons";
-import { Inbox, Wallet, RefreshCw } from "lucide-react";
+import { Inbox, Wallet, Clock } from "lucide-react";
 import localFont from "next/font/local";
 
 const bitcountFont = localFont({
@@ -31,15 +30,8 @@ export function DashboardContent() {
     ? wallet.session.account.address.toString()
     : null;
 
-  const {
-    portfolio,
-    transactions,
-    balance,
-    usdcBalance,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useDashboardData(address, { fastPolling });
+  const { portfolio, balance, usdcBalance, isLoading, refetch } =
+    useDashboardData(address, { fastPolling });
 
   const tokenBalances =
     balance?.tokens.map((t) => ({
@@ -70,11 +62,18 @@ export function DashboardContent() {
         </div>
 
         <div>
-          <h2
-            className={`${bitcountFont.className} text-2xl text-neutral-600 mb-4`}
-          >
-            <span className="text-vibrant-red">{"//"}</span> recent transactions
-          </h2>
+          <div className="mb-4">
+            <h2
+              className={`${bitcountFont.className} text-2xl text-neutral-600`}
+            >
+              <span className="text-vibrant-red">{"//"}</span> recent
+              transactions
+            </h2>
+            <p className="text-sm text-neutral-400 mt-1 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              Statement window: last 31 days
+            </p>
+          </div>
           <div className="border border-neutral-200 rounded-lg bg-white p-8 text-center">
             <div className="w-12 h-12 rounded-full bg-neutral-100 mx-auto mb-4 flex items-center justify-center">
               <Inbox className="h-6 w-6 text-neutral-400" />
@@ -97,11 +96,18 @@ export function DashboardContent() {
         </div>
 
         <div>
-          <h2
-            className={`${bitcountFont.className} text-2xl text-neutral-600 mb-4`}
-          >
-            <span className="text-vibrant-red">{"//"}</span> recent transactions
-          </h2>
+          <div className="mb-4">
+            <h2
+              className={`${bitcountFont.className} text-2xl text-neutral-600`}
+            >
+              <span className="text-vibrant-red">{"//"}</span> recent
+              transactions
+            </h2>
+            <p className="text-sm text-neutral-400 mt-1 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              Statement window: last 31 days
+            </p>
+          </div>
           <TransactionsListSkeleton count={5} />
         </div>
       </main>
@@ -119,29 +125,7 @@ export function DashboardContent() {
         />
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className={`${bitcountFont.className} text-2xl text-neutral-600`}>
-            <span className="text-vibrant-red">{"//"}</span> recent transactions
-          </h2>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className={cn(
-              "p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 transition-colors",
-              isFetching && "animate-spin",
-            )}
-            title="Refresh"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        </div>
-        <TransactionsList
-          transactions={transactions}
-          walletAddress={address!}
-        />
-      </div>
+      <TransactionsFeed walletAddress={address!} fastPolling={fastPolling} />
 
       <SendTransferDrawer
         open={sendDrawerOpen}

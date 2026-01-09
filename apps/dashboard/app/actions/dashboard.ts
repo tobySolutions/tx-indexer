@@ -2,7 +2,8 @@
 
 import { getIndexer } from "@/lib/indexer";
 import { fetchTokenPrices } from "@/lib/prices";
-import type { ClassifiedTransaction, WalletBalance } from "tx-indexer";
+import type { ClassifiedTransaction } from "tx-indexer";
+import type { WalletBalance } from "tx-indexer/advanced";
 import { address, signature } from "@solana/kit";
 import { dashboardDataSchema } from "@/lib/validations";
 
@@ -102,6 +103,54 @@ export async function getBalanceAndPortfolio(
   const portfolio = await calculatePortfolio(balance);
 
   return { balance, portfolio };
+}
+
+/**
+ * Fetch a page of transactions with cursor-based pagination
+ * Used for infinite scroll in the transactions feed
+ */
+export async function getTransactionsPage(
+  walletAddress: string,
+  options: {
+    limit?: number;
+    cursor?: string; // Transaction signature to start after (oldest loaded)
+  } = {},
+): Promise<{
+  transactions: ClassifiedTransaction[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}> {
+  const { limit = 20, cursor } = options;
+
+  const indexer = getIndexer();
+  const addr = address(walletAddress);
+
+  const retryConfig = {
+    maxAttempts: 3,
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+  };
+
+  const transactions = await indexer.getTransactions(addr, {
+    limit: limit + 1, // Fetch one extra to check if there are more
+    before: cursor ? signature(cursor) : undefined,
+    retry: retryConfig,
+  });
+
+  const hasMore = transactions.length > limit;
+  const pageTransactions = hasMore
+    ? transactions.slice(0, limit)
+    : transactions;
+  const nextCursor =
+    pageTransactions.length > 0
+      ? (pageTransactions[pageTransactions.length - 1]?.tx.signature ?? null)
+      : null;
+
+  return {
+    transactions: pageTransactions,
+    nextCursor,
+    hasMore,
+  };
 }
 
 export async function getDashboardData(

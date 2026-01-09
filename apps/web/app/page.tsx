@@ -1,6 +1,6 @@
 import { signature } from "@solana/kit";
 import { TransactionReceipt } from "@/components/tx-receipt";
-import { createIndexer } from "tx-indexer";
+import { getIndexer } from "@/lib/indexer";
 import { getSolPrice } from "@/lib/sol-price";
 import { InstallCommand } from "@/components/install-command";
 import localFont from "next/font/local";
@@ -15,12 +15,8 @@ const bitcountFont = localFont({
 });
 
 export default async function Page() {
-  const { getTransaction } = createIndexer({
-    rpcUrl: process.env.SERVER_RPC_URL!,
-  });
-
   const [transaction, solPrice] = await Promise.all([
-    getTransaction(TX_SIGNATURE),
+    getIndexer().getTransaction(TX_SIGNATURE),
     getSolPrice(),
   ]);
 

@@ -7,6 +7,45 @@ import type { WalletBalance } from "tx-indexer/advanced";
 import { address, signature } from "@solana/kit";
 import { dashboardDataSchema } from "@/lib/validations";
 
+// =============================================================================
+// RPC OPTIMIZATION CONFIG
+// =============================================================================
+// These settings reduce RPC calls significantly for rate-limited RPCs (e.g., Helius free tier)
+// Set OPTIMIZE_FOR_RATE_LIMITS=true in env to enable aggressive optimization
+
+const OPTIMIZE_FOR_RATE_LIMITS =
+  process.env.OPTIMIZE_FOR_RATE_LIMITS === "true";
+
+/**
+ * Default SDK options optimized for the current RPC tier.
+ *
+ * Rate-limited mode (OPTIMIZE_FOR_RATE_LIMITS=true):
+ * - overfetchMultiplier: 1 (no overfetch, saves ~50% of RPC calls)
+ * - minPageSize: matches limit (no minimum)
+ *
+ * Standard mode:
+ * - overfetchMultiplier: 2 (fetch extra to account for spam filtering)
+ * - minPageSize: 20 (ensures good batch sizes)
+ *
+ * NOTE: includeTokenAccounts is always true because incoming SPL token transfers
+ * (like USDC) only appear in the receiver's Associated Token Account (ATA),
+ * not their wallet address. Without this, receivers won't see incoming tokens.
+ */
+const getOptimizedOptions = (limit: number) => ({
+  // Rate-limit friendly settings reduce overfetch
+  overfetchMultiplier: OPTIMIZE_FOR_RATE_LIMITS ? 1 : 2,
+  minPageSize: OPTIMIZE_FOR_RATE_LIMITS ? limit : 20,
+  // Required for incoming SPL token transfers - receiver's wallet isn't in
+  // accountKeys, only their ATA is, so we must query token accounts
+  includeTokenAccounts: true,
+  // Retry config for resilience
+  retry: {
+    maxAttempts: 3,
+    baseDelayMs: OPTIMIZE_FOR_RATE_LIMITS ? 1000 : 500,
+    maxDelayMs: OPTIMIZE_FOR_RATE_LIMITS ? 10000 : 5000,
+  },
+});
+
 const STABLECOIN_MINTS = new Set([
   "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
   "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
@@ -81,12 +120,12 @@ export async function getNewTransactions(
 ): Promise<ClassifiedTransaction[]> {
   const indexer = getIndexer();
   const addr = address(walletAddress);
+  const opts = getOptimizedOptions(limit);
 
   return indexer.getTransactions(addr, {
     limit,
     until: signature(untilSignature),
-    includeTokenAccounts: true,
-    retry: { maxAttempts: 3, baseDelayMs: 500, maxDelayMs: 5000 },
+    ...opts,
   });
 }
 
@@ -125,18 +164,12 @@ export async function getTransactionsPage(
 
   const indexer = getIndexer();
   const addr = address(walletAddress);
-
-  const retryConfig = {
-    maxAttempts: 3,
-    baseDelayMs: 500,
-    maxDelayMs: 5000,
-  };
+  const opts = getOptimizedOptions(limit + 1);
 
   const transactions = await indexer.getTransactions(addr, {
     limit: limit + 1,
     before: cursor ? signature(cursor) : undefined,
-    includeTokenAccounts: true,
-    retry: retryConfig,
+    ...opts,
   });
 
   const hasMore = transactions.length > limit;
@@ -174,19 +207,12 @@ export async function getDashboardData(
 
   const indexer = getIndexer();
   const addr = address(validAddress);
-
-  // Retry config for rate limiting resilience
-  const retryConfig = {
-    maxAttempts: 3,
-    baseDelayMs: 500,
-    maxDelayMs: 5000,
-  };
+  const opts = getOptimizedOptions(validLimit);
 
   const balance = await indexer.getBalance(addr);
   const transactions = await indexer.getTransactions(addr, {
     limit: validLimit,
-    includeTokenAccounts: true,
-    retry: retryConfig,
+    ...opts,
   });
 
   const portfolio = await calculatePortfolio(balance);

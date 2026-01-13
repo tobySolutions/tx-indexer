@@ -123,8 +123,29 @@ export function ConnectWalletButton() {
     try {
       await connectWallet(connectorId);
       // Sign-in will be triggered by the useEffect when wallet connects
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "unable to connect");
+    } catch (err: unknown) {
+      // Handle various error formats from wallet extensions
+      let errorMessage = "unable to connect";
+      if (err instanceof Error && err.message) {
+        errorMessage = err.message;
+      } else if (
+        typeof err === "object" &&
+        err !== null &&
+        "message" in err &&
+        typeof err.message === "string"
+      ) {
+        errorMessage = err.message;
+      }
+
+      // Don't show error if user rejected the connection
+      const isUserRejection =
+        errorMessage.toLowerCase().includes("user rejected") ||
+        errorMessage.toLowerCase().includes("cancelled");
+
+      if (!isUserRejection) {
+        setError(errorMessage);
+      }
+
       setIsConnecting(false);
       pendingSignInRef.current = false;
     }

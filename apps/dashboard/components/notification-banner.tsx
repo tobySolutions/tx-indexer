@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, X } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 import { useNotifications } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
@@ -43,49 +43,42 @@ export function NotificationBanner() {
   };
 
   return (
-    <div className="mb-4 border border-blue-200 bg-blue-50 rounded-lg p-4">
-      <div className="flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-blue-100">
-          <Bell className="h-4 w-4 text-blue-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-blue-900">
-            Enable notifications
-          </p>
-          <p className="text-sm text-blue-700 mt-0.5">
-            Get notified when you receive transactions, even when this tab is in
-            the background.
-          </p>
-          <div className="flex items-center gap-2 mt-3">
-            <button
-              type="button"
-              onClick={handleEnable}
-              disabled={isRequesting}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md",
-                "bg-blue-600 text-white hover:bg-blue-700",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
-                "transition-colors cursor-pointer",
-              )}
-            >
-              {isRequesting ? "Requesting..." : "Enable"}
-            </button>
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="px-3 py-1.5 text-sm font-medium text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
-            >
-              Not now
-            </button>
-          </div>
-        </div>
+    <div className="mb-4 p-4 rounded-lg bg-neutral-50 border border-neutral-200">
+      <div className="flex items-center gap-2 mb-3">
+        <Bell className="h-4 w-4 text-neutral-500" />
+        <p className="text-sm font-medium text-neutral-700">
+          enable notifications?
+        </p>
+      </div>
+      <p className="text-xs text-neutral-500 mb-3">
+        Get notified when you receive transactions, even when this tab is in the
+        background.
+      </p>
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={handleDismiss}
-          className="p-1 rounded text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer"
-          aria-label="Dismiss"
+          className="flex-1 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
         >
-          <X className="h-4 w-4" />
+          not now
+        </button>
+        <button
+          type="button"
+          onClick={handleEnable}
+          disabled={isRequesting}
+          className={cn(
+            "flex-1 px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center justify-center gap-1",
+            !isRequesting
+              ? "bg-vibrant-red text-white hover:bg-vibrant-red/90 cursor-pointer"
+              : "bg-neutral-200 text-neutral-400 cursor-not-allowed",
+          )}
+        >
+          {isRequesting ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Bell className="h-3 w-3" />
+          )}
+          {isRequesting ? "enabling..." : "enable"}
         </button>
       </div>
     </div>

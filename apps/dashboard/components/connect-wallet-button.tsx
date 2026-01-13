@@ -49,9 +49,41 @@ export function ConnectWalletButton() {
   }, [open]);
 
   const isConnected = wallet.status === "connected";
+  const isWalletConnecting = wallet.status === "connecting";
   const address = isConnected
     ? wallet.session.account.address.toString()
     : null;
+
+  // Reset isConnecting when connection completes (success or failure)
+  useEffect(() => {
+    if (!isConnecting) return;
+
+    // Success: wallet connected and authenticated
+    if (isConnected && isAuthenticated) {
+      setIsConnecting(false);
+      pendingSignInRef.current = false;
+      return;
+    }
+
+    // Failure: wallet not connecting and not connected
+    if (!isWalletConnecting && !isConnected) {
+      setIsConnecting(false);
+      pendingSignInRef.current = false;
+    }
+  }, [isWalletConnecting, isConnected, isConnecting, isAuthenticated]);
+
+  // Safety timeout: reset connecting state after 30 seconds
+  useEffect(() => {
+    if (!isConnecting) return;
+
+    const timeout = setTimeout(() => {
+      setIsConnecting(false);
+      pendingSignInRef.current = false;
+      setError("Connection timed out. Please try again.");
+    }, 30000);
+
+    return () => clearTimeout(timeout);
+  }, [isConnecting]);
 
   // Detect session expired state: wallet connected but not authenticated
   const isSessionExpired = isConnected && !isAuthenticated;
@@ -170,16 +202,16 @@ export function ConnectWalletButton() {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        disabled={isConnecting}
+        disabled={isConnecting || isWalletConnecting}
         className={cn(
           "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors",
           "bg-vibrant-red text-white hover:bg-vibrant-red/90",
           "cursor-pointer min-w-[160px] justify-center",
-          isConnecting && "opacity-70 cursor-wait",
+          (isConnecting || isWalletConnecting) && "opacity-70 cursor-wait",
           isSessionExpired && "ring-2 ring-amber-400 ring-offset-1",
         )}
       >
-        {isConnecting ? (
+        {isConnecting || isWalletConnecting ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>signing in...</span>
@@ -195,6 +227,7 @@ export function ConnectWalletButton() {
           <span>sign in</span>
         )}
         {!isConnecting &&
+          !isWalletConnecting &&
           (open ? (
             <ChevronUp className="h-4 w-4" />
           ) : (
@@ -202,7 +235,7 @@ export function ConnectWalletButton() {
           ))}
       </button>
 
-      {open && !isConnecting && (
+      {open && !isConnecting && !isWalletConnecting && (
         <div className="absolute right-0 z-10 mt-2 w-full min-w-[240px] rounded-lg border border-neutral-200 bg-white shadow-lg animate-dropdown-in">
           {isConnected ? (
             <div className="p-2 space-y-2">

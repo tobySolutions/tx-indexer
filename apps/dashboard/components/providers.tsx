@@ -34,10 +34,7 @@ export function Providers({ children }: PropsWithChildren) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SolanaProvider
-        config={config}
-        walletPersistence={{ autoConnect: false }}
-      >
+      <SolanaProvider config={config}>
         <AuthProvider>
           {children}
           <Toaster position="bottom-right" richColors />

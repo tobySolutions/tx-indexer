@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useUnifiedWallet } from "@/hooks/use-unified-wallet";
 import { PortfolioCard } from "@/components/portfolio-card";
 import { TransactionsFeed } from "@/components/transactions-feed";
-import { SendTransferDrawer } from "@/components/send-transfer";
-import { TradeDrawer } from "@/components/trade";
 import {
   PortfolioCardSkeleton,
   TransactionsListSkeleton,
@@ -18,6 +17,18 @@ import {
   FAST_POLLING_DURATION_MS,
   STATEMENT_WINDOW_DAYS,
 } from "@/lib/constants";
+
+// Lazy load heavy drawer components - only loaded when user opens them
+const SendTransferDrawer = dynamic(
+  () =>
+    import("@/components/send-transfer").then((mod) => mod.SendTransferDrawer),
+  { ssr: false },
+);
+
+const TradeDrawer = dynamic(
+  () => import("@/components/trade").then((mod) => mod.TradeDrawer),
+  { ssr: false },
+);
 
 const bitcountFont = localFont({
   src: "../app/fonts/Bitcount.ttf",
@@ -132,20 +143,25 @@ export function DashboardContent() {
         <TransactionsFeed walletAddress={address!} fastPolling={fastPolling} />
       </ErrorBoundary>
 
-      <SendTransferDrawer
-        open={sendDrawerOpen}
-        onOpenChange={setSendDrawerOpen}
-        onTransferSuccess={handleTransactionSuccess}
-        usdcBalance={usdcBalance}
-      />
+      {/* Lazy loaded drawers - only mounted when open */}
+      {sendDrawerOpen && (
+        <SendTransferDrawer
+          open={sendDrawerOpen}
+          onOpenChange={setSendDrawerOpen}
+          onTransferSuccess={handleTransactionSuccess}
+          usdcBalance={usdcBalance}
+        />
+      )}
 
-      <TradeDrawer
-        open={tradeDrawerOpen}
-        onOpenChange={setTradeDrawerOpen}
-        onTradeSuccess={handleTransactionSuccess}
-        solBalance={balance?.sol.ui}
-        tokenBalances={tokenBalances}
-      />
+      {tradeDrawerOpen && (
+        <TradeDrawer
+          open={tradeDrawerOpen}
+          onOpenChange={setTradeDrawerOpen}
+          onTradeSuccess={handleTransactionSuccess}
+          solBalance={balance?.sol.ui}
+          tokenBalances={tokenBalances}
+        />
+      )}
     </main>
   );
 }

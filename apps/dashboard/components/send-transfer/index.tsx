@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useUnifiedWallet } from "@/hooks/use-unified-wallet";
+import { useWalletLabels } from "@/hooks/use-wallet-labels";
 import {
   Sheet,
   SheetContent,
@@ -13,10 +14,8 @@ import { cn, truncate } from "@/lib/utils";
 import { Send, AlertCircle } from "lucide-react";
 import { estimateFee, type FeeEstimate } from "@/app/actions/estimate-fee";
 import {
-  getWalletLabels,
   upsertWalletLabel,
   generateDefaultLabel,
-  type WalletLabel,
 } from "@/app/actions/wallet-labels";
 import { useAuth } from "@/lib/auth";
 import { useReauth } from "@/hooks/use-reauth";
@@ -81,6 +80,13 @@ export function SendTransferDrawer({
   const usdcBalance = externalUsdcBalance ?? hookUsdcBalance;
   const [showSignInForLabels, setShowSignInForLabels] = useState(false);
 
+  // Use centralized wallet labels hook - shares cache with other components
+  const {
+    labelsList: savedLabels,
+    getLabel,
+    invalidate: invalidateLabels,
+  } = useWalletLabels();
+
   const prevTransferStatus = useRef(transferStatus);
   useEffect(() => {
     if (
@@ -107,27 +113,20 @@ export function SendTransferDrawer({
   const [isFeeLoading, setIsFeeLoading] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [savedLabels, setSavedLabels] = useState<WalletLabel[]>([]);
   const [currentLabel, setCurrentLabel] = useState<string | null>(null);
   const [showLabelPrompt, setShowLabelPrompt] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [isSavingLabel, setIsSavingLabel] = useState(false);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
 
-  useEffect(() => {
-    if (open && isAuthenticated) {
-      getWalletLabels().then(setSavedLabels);
-    }
-  }, [open, isAuthenticated]);
-
+  // Update current label when recipient changes
   useEffect(() => {
     if (!isValidSolanaAddress(recipientAddress) || !isAuthenticated) {
       setCurrentLabel(null);
       return;
     }
-    const saved = savedLabels.find((l) => l.address === recipientAddress);
-    setCurrentLabel(saved?.label ?? null);
-  }, [recipientAddress, savedLabels, isAuthenticated]);
+    setCurrentLabel(getLabel(recipientAddress));
+  }, [recipientAddress, isAuthenticated, getLabel]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -249,9 +248,10 @@ export function SendTransferDrawer({
     const success = await reauth();
     if (success) {
       setShowSignInForLabels(false);
-      getWalletLabels().then(setSavedLabels);
+      // Invalidate labels cache to refetch after sign in
+      await invalidateLabels();
     }
-  }, [reauth, clearReauthError]);
+  }, [reauth, clearReauthError, invalidateLabels]);
 
   const handleSaveLabel = useCallback(async () => {
     if (!newLabel.trim()) return;
@@ -263,16 +263,19 @@ export function SendTransferDrawer({
     if (result.success) {
       setCurrentLabel(newLabel.trim());
       setShowLabelPrompt(false);
-      const labels = await getWalletLabels();
-      setSavedLabels(labels);
+      // Invalidate labels cache to refetch with new label
+      await invalidateLabels();
     }
-  }, [recipientAddress, newLabel]);
+  }, [recipientAddress, newLabel, invalidateLabels]);
 
-  const handleSelectLabel = useCallback((label: WalletLabel) => {
-    setRecipientAddress(label.address);
-    setCurrentLabel(label.label);
-    setShowAutocomplete(false);
-  }, []);
+  const handleSelectLabel = useCallback(
+    (label: { address: string; label: string }) => {
+      setRecipientAddress(label.address);
+      setCurrentLabel(label.label);
+      setShowAutocomplete(false);
+    },
+    [],
+  );
 
   const handleClose = useCallback(() => {
     resetForm();

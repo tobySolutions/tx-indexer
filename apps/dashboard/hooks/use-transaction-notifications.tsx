@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import type { ClassifiedTransaction } from "tx-indexer";
 import { getTransactionDirection } from "@/lib/transaction-utils";
-import { getWalletLabels } from "@/app/actions/wallet-labels";
+import { useWalletLabels } from "@/hooks/use-wallet-labels";
 import { TransactionToast } from "@/components/transaction-toast";
 
 interface UseTransactionNotificationsOptions {
@@ -151,25 +151,8 @@ export function useTransactionNotifications(
   options: UseTransactionNotificationsOptions,
 ) {
   const { walletAddress } = options;
-  const labelsRef = useRef<Map<string, string>>(new Map());
-
-  // Fetch labels on mount and when wallet changes
-  useEffect(() => {
-    async function fetchLabels() {
-      try {
-        const labels = await getWalletLabels();
-        const labelMap = new Map<string, string>();
-        for (const label of labels) {
-          labelMap.set(label.address, label.label);
-        }
-        labelsRef.current = labelMap;
-      } catch (error) {
-        console.error("Failed to fetch wallet labels:", error);
-      }
-    }
-
-    fetchLabels();
-  }, [walletAddress]);
+  // Use centralized wallet labels hook - shares cache with other components
+  const { labels } = useWalletLabels();
 
   const notifyNewTransactions = useCallback(
     (transactions: ClassifiedTransaction[]) => {
@@ -179,7 +162,7 @@ export function useTransactionNotifications(
         const { title, body } = formatTransactionNotification(
           tx,
           walletAddress,
-          labelsRef.current,
+          labels,
         );
 
         const directionInfo = getTransactionDirection(tx, walletAddress);
@@ -208,7 +191,7 @@ export function useTransactionNotifications(
         sendBrowserNotification(title, body, tx.tx.signature, detailUrl);
       }
     },
-    [walletAddress],
+    [walletAddress, labels],
   );
 
   return {

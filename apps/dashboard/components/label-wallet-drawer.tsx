@@ -11,12 +11,10 @@ import {
 import { cn } from "@/lib/utils";
 import { Tag, Check, Loader2, AlertCircle } from "lucide-react";
 import {
-  getWalletLabels,
   upsertWalletLabel,
   generateDefaultLabel,
-  type WalletLabel,
 } from "@/app/actions/wallet-labels";
-import { useAuth } from "@/lib/auth";
+import { useWalletLabels } from "@/hooks/use-wallet-labels";
 import { isValidSolanaAddress } from "@/lib/validations";
 
 interface LabelWalletDrawerProps {
@@ -28,22 +26,15 @@ export function LabelWalletDrawer({
   open,
   onOpenChange,
 }: LabelWalletDrawerProps) {
-  const { isAuthenticated } = useAuth();
+  // Use centralized wallet labels hook - shares cache with other components
+  const { getLabel, invalidate: invalidateLabels } = useWalletLabels();
 
   const [address, setAddress] = useState("");
   const [label, setLabel] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [savedLabels, setSavedLabels] = useState<WalletLabel[]>([]);
   const [existingLabel, setExistingLabel] = useState<string | null>(null);
-
-  // Load existing labels when drawer opens
-  useEffect(() => {
-    if (open && isAuthenticated) {
-      getWalletLabels().then(setSavedLabels);
-    }
-  }, [open, isAuthenticated]);
 
   // Check if address already has a label
   useEffect(() => {
@@ -51,12 +42,12 @@ export function LabelWalletDrawer({
       setExistingLabel(null);
       return;
     }
-    const existing = savedLabels.find((l) => l.address === address);
-    setExistingLabel(existing?.label ?? null);
+    const existing = getLabel(address);
+    setExistingLabel(existing);
     if (existing && !label) {
-      setLabel(existing.label);
+      setLabel(existing);
     }
-  }, [address, savedLabels, label]);
+  }, [address, getLabel, label]);
 
   // Generate default label when address is valid and no label exists
   useEffect(() => {
@@ -99,8 +90,8 @@ export function LabelWalletDrawer({
 
       if (result.success) {
         setSuccess(true);
-        const labels = await getWalletLabels();
-        setSavedLabels(labels);
+        // Invalidate labels cache so other components get the update
+        await invalidateLabels();
         setTimeout(() => {
           handleClose();
         }, 1500);
@@ -108,7 +99,7 @@ export function LabelWalletDrawer({
         setError(result.error ?? "Failed to save label");
       }
     },
-    [address, label, handleClose],
+    [address, label, handleClose, invalidateLabels],
   );
 
   const isAddressValid = isValidSolanaAddress(address);

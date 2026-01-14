@@ -6,6 +6,18 @@ import type { ClassifiedTransaction } from "tx-indexer";
 import type { WalletBalance } from "tx-indexer/advanced";
 import { address, signature } from "@solana/kit";
 import { dashboardDataSchema } from "@/lib/validations";
+import {
+  STABLECOIN_MINTS,
+  SOL_MINT,
+  DEFAULT_TRANSACTION_LIMIT,
+  DEFAULT_PAGE_SIZE,
+} from "@/lib/constants";
+import {
+  getCachedTransactions,
+  setCachedTransactions,
+  prependToCache,
+  appendToCache,
+} from "@/lib/transaction-cache";
 
 // =============================================================================
 // RPC OPTIMIZATION CONFIG
@@ -45,17 +57,6 @@ const getOptimizedOptions = (limit: number) => ({
     maxDelayMs: OPTIMIZE_FOR_RATE_LIMITS ? 10000 : 5000,
   },
 });
-
-const STABLECOIN_MINTS = new Set([
-  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
-  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
-  "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo", // PYUSD
-  "2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH", // USDG
-  "A9mUU4qviSctJVPJdBJWkb28deg915LYJKrzQ19ji3FM", // USDC Bridged
-  "EjmyN6qEC1Tf1JxiG1ae7UTJhUxSwk1TCCi3Z4dPuFhh", // DAI
-]);
-
-const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 export interface PortfolioSummary {
   totalUsd: number;
@@ -112,21 +113,32 @@ async function calculatePortfolio(
 /**
  * Fetch new transactions since a known signature (for incremental updates)
  * This dramatically reduces RPC calls on polling - only fetches what's new
+ *
+ * Returns empty array quickly if no new transactions exist.
  */
 export async function getNewTransactions(
   walletAddress: string,
   untilSignature: string,
-  limit: number = 10,
+  limit: number = DEFAULT_TRANSACTION_LIMIT,
 ): Promise<ClassifiedTransaction[]> {
   const indexer = getIndexer();
   const addr = address(walletAddress);
   const opts = getOptimizedOptions(limit);
 
-  return indexer.getTransactions(addr, {
+  const newTxs = await indexer.getTransactions(addr, {
     limit,
     until: signature(untilSignature),
     ...opts,
   });
+
+  // Update server cache with new transactions (fire and forget)
+  if (newTxs.length > 0) {
+    prependToCache(walletAddress, newTxs).catch((err) =>
+      console.error("[Cache] Failed to prepend:", err),
+    );
+  }
+
+  return newTxs;
 }
 
 /**
@@ -147,21 +159,100 @@ export async function getBalanceAndPortfolio(
 
 /**
  * Fetch a page of transactions with cursor-based pagination
- * Used for infinite scroll in the transactions feed
+ * Uses aggressive cache-first strategy for instant loads.
+ *
+ * Cache strategy (Aggressive):
+ * - First page: ALWAYS return cache immediately if available
+ * - Return `cachedLatestSignature` so client can fetch gap in background
+ * - Subsequent pages: Check cache first, then RPC
+ *
+ * This means:
+ * - Page loads are instant (0ms for cached wallets)
+ * - New transactions are fetched in background and animate in
+ * - RPC is only hit for truly new data
  */
 export async function getTransactionsPage(
   walletAddress: string,
   options: {
     limit?: number;
     cursor?: string; // Transaction signature to start after (oldest loaded)
+    forceRefresh?: boolean; // Skip cache and fetch fresh data
   } = {},
 ): Promise<{
   transactions: ClassifiedTransaction[];
   nextCursor: string | null;
   hasMore: boolean;
+  fromCache: boolean;
+  cachedLatestSignature: string | null; // For client to fetch gap
 }> {
-  const { limit = 20, cursor } = options;
+  const { limit = DEFAULT_PAGE_SIZE, cursor, forceRefresh = false } = options;
 
+  // For the first page (no cursor), ALWAYS check cache first (aggressive strategy)
+  if (!cursor && !forceRefresh) {
+    const cached = await getCachedTransactions(walletAddress);
+    if (cached && cached.transactions.length > 0) {
+      // Return cached data immediately - client will fetch gap in background
+      const pageTransactions = cached.transactions.slice(0, limit);
+      const nextCursor =
+        pageTransactions.length > 0
+          ? (pageTransactions[pageTransactions.length - 1]?.tx.signature ??
+            null)
+          : null;
+
+      console.log(
+        `[Redis Cache] HIT for ${walletAddress.slice(0, 8)}... - ${pageTransactions.length} txs (latest: ${cached.latestSignature?.slice(0, 8)}...)`,
+      );
+
+      return {
+        transactions: pageTransactions,
+        nextCursor,
+        hasMore: cached.transactions.length > limit || cached.hasMore,
+        fromCache: true,
+        cachedLatestSignature: cached.latestSignature, // Client uses this to fetch gap
+      };
+    }
+    console.log(`[Redis Cache] MISS for ${walletAddress.slice(0, 8)}...`);
+  }
+
+  // For pagination with cursor, check if we have this page in cache
+  if (cursor && !forceRefresh) {
+    const cached = await getCachedTransactions(walletAddress);
+    if (cached && cached.transactions.length > 0) {
+      // Find the cursor position in cached transactions
+      const cursorIndex = cached.transactions.findIndex(
+        (tx) => tx.tx.signature === cursor,
+      );
+
+      if (cursorIndex !== -1) {
+        // We have transactions after this cursor in cache
+        const startIndex = cursorIndex + 1;
+        const pageTransactions = cached.transactions.slice(
+          startIndex,
+          startIndex + limit,
+        );
+
+        if (pageTransactions.length > 0) {
+          const nextCursor =
+            pageTransactions[pageTransactions.length - 1]?.tx.signature ?? null;
+          const cacheHasMore = startIndex + limit < cached.transactions.length;
+
+          console.log(
+            `[Redis Cache] HIT (pagination) for ${walletAddress.slice(0, 8)}... - ${pageTransactions.length} txs`,
+          );
+
+          return {
+            transactions: pageTransactions,
+            nextCursor,
+            hasMore: cacheHasMore || cached.hasMore,
+            fromCache: true,
+            cachedLatestSignature: null, // Not needed for pagination
+          };
+        }
+      }
+    }
+  }
+
+  // Fetch from RPC
   const indexer = getIndexer();
   const addr = address(walletAddress);
   const opts = getOptimizedOptions(limit + 1);
@@ -181,16 +272,43 @@ export async function getTransactionsPage(
       ? (pageTransactions[pageTransactions.length - 1]?.tx.signature ?? null)
       : null;
 
+  console.log(
+    `[RPC] Fetched ${pageTransactions.length} transactions for ${walletAddress.slice(0, 8)}...`,
+  );
+
+  // Update server cache (fire and forget to not block response)
+  if (!cursor) {
+    // First page - set the cache
+    setCachedTransactions(walletAddress, pageTransactions, hasMore)
+      .then(() =>
+        console.log(
+          `[Redis Cache] SET for ${walletAddress.slice(0, 8)}... - ${pageTransactions.length} transactions`,
+        ),
+      )
+      .catch((err) => console.error("[Cache] Failed to set:", err));
+  } else {
+    // Subsequent pages - append to cache
+    appendToCache(walletAddress, pageTransactions, hasMore)
+      .then(() =>
+        console.log(
+          `[Redis Cache] APPEND for ${walletAddress.slice(0, 8)}... - ${pageTransactions.length} transactions`,
+        ),
+      )
+      .catch((err) => console.error("[Cache] Failed to append:", err));
+  }
+
   return {
     transactions: pageTransactions,
     nextCursor,
     hasMore,
+    fromCache: false,
+    cachedLatestSignature: null, // Fresh data, no gap to fill
   };
 }
 
 export async function getDashboardData(
   walletAddress: string,
-  transactionLimit: number = 10,
+  transactionLimit: number = DEFAULT_TRANSACTION_LIMIT,
 ): Promise<DashboardData> {
   // Validate inputs with Zod
   const validationResult = dashboardDataSchema.safeParse({

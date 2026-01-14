@@ -1,3 +1,29 @@
+interface NavigatorWithStandalone extends Navigator {
+  standalone?: boolean;
+}
+
+interface PhantomSolana {
+  isPhantom?: boolean;
+}
+
+interface WindowWithPhantom {
+  phantom?: {
+    solana?: PhantomSolana;
+  };
+}
+
+interface WindowWithSolflare {
+  solflare?: {
+    isSolflare?: boolean;
+  };
+}
+
+interface WindowWithBackpack {
+  backpack?: {
+    isBackpack?: boolean;
+  };
+}
+
 export function isMobileDevice(): boolean {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return false;
@@ -19,6 +45,19 @@ export function isIOS(): boolean {
     return false;
   }
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+export function isPWA(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  const isIOSStandalone =
+    (navigator as NavigatorWithStandalone).standalone === true;
+  const isAndroidTWA = document.referrer.includes("android-app://");
+
+  return isStandalone || isIOSStandalone || isAndroidTWA;
 }
 
 export function supportsMWA(): boolean {
@@ -58,26 +97,4 @@ export function hasWalletExtension(): boolean {
 
 export function isInWalletBrowser(): boolean {
   return isMobileDevice() && hasWalletExtension();
-}
-
-interface PhantomSolana {
-  isPhantom?: boolean;
-}
-
-interface WindowWithPhantom {
-  phantom?: {
-    solana?: PhantomSolana;
-  };
-}
-
-interface WindowWithSolflare {
-  solflare?: {
-    isSolflare?: boolean;
-  };
-}
-
-interface WindowWithBackpack {
-  backpack?: {
-    isBackpack?: boolean;
-  };
 }

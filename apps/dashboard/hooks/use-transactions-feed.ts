@@ -1,15 +1,19 @@
 "use client";
 
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import {
   getTransactionsPage,
   getNewTransactions,
 } from "@/app/actions/dashboard";
 import type { ClassifiedTransaction } from "tx-indexer";
-
-const STATEMENT_WINDOW_DAYS = 31;
-const STATEMENT_WINDOW_MS = STATEMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+import {
+  STATEMENT_WINDOW_MS,
+  DEFAULT_PAGE_SIZE,
+  FAST_STALE_TIME_MS,
+  TRANSACTION_FEED_STALE_TIME_MS,
+  EMPTY_TRANSACTIONS_FEED_QUERY_KEY,
+} from "@/lib/constants";
 
 export const transactionsFeedKeys = {
   all: ["transactions-feed"] as const,
@@ -32,18 +36,26 @@ interface TransactionsFeedPage {
   nextCursor: string | null;
   hasMore: boolean;
   reachedStatementCutoff: boolean;
+  fromCache?: boolean;
+  cachedLatestSignature?: string | null;
 }
 
 export function useTransactionsFeed(
   address: string | null,
   options: UseTransactionsFeedOptions = {},
 ) {
-  const { pageSize = 10, fastPolling = false, onNewTransactions } = options;
+  const {
+    pageSize = DEFAULT_PAGE_SIZE,
+    fastPolling = false,
+    onNewTransactions,
+  } = options;
   const queryClient = useQueryClient();
 
   const polledSignaturesRef = useRef<Set<string>>(new Set());
   const [newSignatures, setNewSignatures] = useState<Set<string>>(new Set());
+  const [isCheckingForNew, setIsCheckingForNew] = useState(false);
   const isInitializedRef = useRef(false);
+  const hasCheckedGapRef = useRef(false);
 
   const statementCutoffTimestamp = useMemo(() => {
     const now = Date.now();
@@ -53,7 +65,7 @@ export function useTransactionsFeed(
   const query = useInfiniteQuery<TransactionsFeedPage>({
     queryKey: address
       ? transactionsFeedKeys.feed(address)
-      : ["transactions-feed", "empty"],
+      : EMPTY_TRANSACTIONS_FEED_QUERY_KEY,
     queryFn: async ({ pageParam }) => {
       if (!address) {
         return {
@@ -61,6 +73,7 @@ export function useTransactionsFeed(
           nextCursor: null,
           hasMore: false,
           reachedStatementCutoff: false,
+          fromCache: false,
         };
       }
 
@@ -70,6 +83,13 @@ export function useTransactionsFeed(
         limit: pageSize,
         cursor,
       });
+
+      // Log cache status in development
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          `[Transactions] ${result.fromCache ? "FROM CACHE" : "FROM RPC"} - ${result.transactions.length} transactions`,
+        );
+      }
 
       let reachedStatementCutoff = false;
       const filteredTransactions: ClassifiedTransaction[] = [];
@@ -90,6 +110,8 @@ export function useTransactionsFeed(
         nextCursor: reachedStatementCutoff ? null : result.nextCursor,
         hasMore: !reachedStatementCutoff && result.hasMore,
         reachedStatementCutoff,
+        fromCache: result.fromCache,
+        cachedLatestSignature: result.cachedLatestSignature,
       };
     },
     initialPageParam: undefined,
@@ -100,8 +122,15 @@ export function useTransactionsFeed(
       return lastPage.nextCursor;
     },
     enabled: !!address,
-    staleTime: fastPolling ? 5 * 1000 : 30 * 1000,
+    // Longer stale time - we rely on polling for new transactions
+    staleTime: fastPolling
+      ? FAST_STALE_TIME_MS
+      : TRANSACTION_FEED_STALE_TIME_MS,
+    // Keep previous data while refetching for instant display
+    placeholderData: (previousData) => previousData,
     refetchOnWindowFocus: false,
+    // Don't refetch on mount if we have data - polling handles updates
+    refetchOnMount: false,
   });
 
   const allTransactions = useMemo(() => {
@@ -145,6 +174,113 @@ export function useTransactionsFeed(
     }
     isInitializedRef.current = true;
   }
+
+  // Check if we got cached data and need to fetch the gap
+  const firstPage = query.data?.pages?.[0];
+  const cachedLatestSignature = firstPage?.cachedLatestSignature;
+  const wasFromCache = firstPage?.fromCache;
+
+  // Fetch gap when we get cached data (only once per mount)
+  useEffect(() => {
+    if (
+      !address ||
+      !wasFromCache ||
+      !cachedLatestSignature ||
+      hasCheckedGapRef.current
+    ) {
+      return;
+    }
+
+    hasCheckedGapRef.current = true;
+
+    const fetchGap = async () => {
+      setIsCheckingForNew(true);
+
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          `[Transactions] Checking for new transactions since ${cachedLatestSignature.slice(0, 8)}...`,
+        );
+      }
+
+      try {
+        const newTxs = await getNewTransactions(
+          address,
+          cachedLatestSignature,
+          pageSize,
+        );
+
+        if (newTxs.length > 0) {
+          if (process.env.NODE_ENV === "development") {
+            console.log(
+              `[Transactions] Found ${newTxs.length} new transactions!`,
+            );
+          }
+
+          // Track new signatures for animation
+          const trulyNewSigs = new Set<string>();
+          for (const tx of newTxs) {
+            if (!polledSignaturesRef.current.has(tx.tx.signature)) {
+              trulyNewSigs.add(tx.tx.signature);
+              polledSignaturesRef.current.add(tx.tx.signature);
+            }
+          }
+
+          if (trulyNewSigs.size > 0) {
+            setNewSignatures(trulyNewSigs);
+            setTimeout(() => setNewSignatures(new Set()), 3000);
+
+            // Notify callback
+            const trulyNewTxs = newTxs.filter((tx) =>
+              trulyNewSigs.has(tx.tx.signature),
+            );
+            if (onNewTransactions && trulyNewTxs.length > 0) {
+              onNewTransactions(trulyNewTxs);
+            }
+
+            // Prepend to query data
+            queryClient.setQueryData<{
+              pages: TransactionsFeedPage[];
+              pageParams: unknown[];
+            }>(transactionsFeedKeys.feed(address), (oldData) => {
+              if (!oldData?.pages || !oldData.pages[0]) return oldData;
+
+              const newPage = {
+                ...oldData.pages[0],
+                transactions: [
+                  ...trulyNewTxs,
+                  ...oldData.pages[0].transactions,
+                ],
+                // Clear the flag so we don't re-fetch
+                cachedLatestSignature: null,
+              };
+
+              return {
+                ...oldData,
+                pages: [newPage, ...oldData.pages.slice(1)],
+              };
+            });
+          }
+        } else {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[Transactions] No new transactions found");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch transaction gap:", error);
+      } finally {
+        setIsCheckingForNew(false);
+      }
+    };
+
+    fetchGap();
+  }, [
+    address,
+    wasFromCache,
+    cachedLatestSignature,
+    pageSize,
+    queryClient,
+    onNewTransactions,
+  ]);
 
   const pollNewTransactions = useCallback(async () => {
     if (!address || allTransactions.length === 0) return;
@@ -201,16 +337,29 @@ export function useTransactionsFeed(
     }
   }, [address, allTransactions, pageSize, queryClient, onNewTransactions]);
 
-  const refresh = useCallback(async () => {
-    if (!address) return;
+  /**
+   * Smart refresh - polls for new transactions instead of full reload.
+   * Only does a full reload if forceFullRefresh is true.
+   */
+  const refresh = useCallback(
+    async (forceFullRefresh = false) => {
+      if (!address) return;
 
-    isInitializedRef.current = false;
-    polledSignaturesRef.current.clear();
-
-    await queryClient.invalidateQueries({
-      queryKey: transactionsFeedKeys.feed(address),
-    });
-  }, [address, queryClient]);
+      if (forceFullRefresh) {
+        // Full reload - clears cache and refetches everything
+        isInitializedRef.current = false;
+        polledSignaturesRef.current.clear();
+        await queryClient.invalidateQueries({
+          queryKey: transactionsFeedKeys.feed(address),
+        });
+      } else {
+        // Smart refresh - just poll for new transactions
+        // This is instant if there are no new transactions
+        await pollNewTransactions();
+      }
+    },
+    [address, queryClient, pollNewTransactions],
+  );
 
   const {
     fetchNextPage,
@@ -230,6 +379,7 @@ export function useTransactionsFeed(
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     isFetchingNextPage: query.isFetchingNextPage,
+    isCheckingForNew, // True when fetching gap after cache hit
     hasMore,
     reachedStatementCutoff,
     error: query.error,

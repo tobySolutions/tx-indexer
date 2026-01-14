@@ -46,6 +46,7 @@ export function TokenSelector({
         )}
       >
         {selectedToken.logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- External token logos from arbitrary CDNs
           <img
             src={selectedToken.logoUrl}
             alt={selectedToken.symbol}
@@ -72,6 +73,7 @@ export function TokenSelector({
               )}
             >
               {token.logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- External token logos from arbitrary CDNs
                 <img
                   src={token.logoUrl}
                   alt={token.symbol}

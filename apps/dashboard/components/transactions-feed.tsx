@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo, useCallback } from "react";
+import { useEffect, useRef, useMemo, useCallback, memo } from "react";
 import type { ClassifiedTransaction } from "tx-indexer";
 import { TransactionRow } from "@/components/transaction-row";
 import { TransactionRowSkeleton } from "@/components/skeletons";
@@ -15,6 +15,11 @@ import { NotificationBanner } from "@/components/notification-banner";
 import { cn } from "@/lib/utils";
 import { Inbox, RefreshCw, Clock, Loader2 } from "lucide-react";
 import localFont from "next/font/local";
+import {
+  STANDARD_POLLING_INTERVAL_MS,
+  FAST_POLLING_INTERVAL_MS,
+  STATEMENT_WINDOW_DAYS,
+} from "@/lib/constants";
 
 const bitcountFont = localFont({
   src: "../app/fonts/Bitcount.ttf",
@@ -41,6 +46,7 @@ export function TransactionsFeed({
     isLoading,
     isFetching,
     isFetchingNextPage,
+    isCheckingForNew,
     hasMore,
     reachedStatementCutoff,
     loadMore,
@@ -56,7 +62,9 @@ export function TransactionsFeed({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const pollingInterval = fastPolling ? 10 * 1000 : 60 * 1000;
+    const pollingInterval = fastPolling
+      ? FAST_POLLING_INTERVAL_MS
+      : STANDARD_POLLING_INTERVAL_MS;
 
     pollingIntervalRef.current = setInterval(() => {
       pollNewTransactions();
@@ -131,7 +139,11 @@ export function TransactionsFeed({
 
   return (
     <div>
-      <FeedHeader onRefresh={handleRefresh} isRefreshing={isFetching} />
+      <FeedHeader
+        onRefresh={handleRefresh}
+        isRefreshing={isFetching}
+        isCheckingForNew={isCheckingForNew}
+      />
       <NotificationBanner />
 
       <div className="space-y-4">
@@ -171,9 +183,14 @@ export function TransactionsFeed({
 interface FeedHeaderProps {
   onRefresh: () => void;
   isRefreshing: boolean;
+  isCheckingForNew?: boolean;
 }
 
-function FeedHeader({ onRefresh, isRefreshing }: FeedHeaderProps) {
+function FeedHeader({
+  onRefresh,
+  isRefreshing,
+  isCheckingForNew,
+}: FeedHeaderProps) {
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between">
@@ -181,10 +198,18 @@ function FeedHeader({ onRefresh, isRefreshing }: FeedHeaderProps) {
           <h2 className={`${bitcountFont.className} text-2xl text-neutral-600`}>
             <span className="text-vibrant-red">{"//"}</span> recent transactions
           </h2>
-          <p className="text-sm text-neutral-400 mt-1 flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" />
-            Statement window: last 31 days
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-sm text-neutral-400 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              Statement window: last {STATEMENT_WINDOW_DAYS} days
+            </p>
+            {isCheckingForNew && (
+              <span className="text-xs text-neutral-400 flex items-center gap-1 bg-neutral-100 px-2 py-0.5 rounded-full">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Checking for new...
+              </span>
+            )}
+          </div>
         </div>
         <button
           type="button"
@@ -212,7 +237,7 @@ interface DayGroupProps {
   labels: Map<string, string>;
 }
 
-function DayGroup({
+const DayGroup = memo(function DayGroup({
   displayDate,
   dailyTotal,
   transactions,
@@ -248,7 +273,7 @@ function DayGroup({
       </div>
     </div>
   );
-}
+});
 
 function DayGroupSkeleton() {
   return (

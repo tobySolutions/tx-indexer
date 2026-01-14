@@ -1,7 +1,7 @@
 "use client";
 
 import type { ClassifiedTransaction } from "tx-indexer";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import {
   formatRelativeTime,
   formatDateOnly,
@@ -22,6 +22,7 @@ import { CopyButton } from "@/components/copy-button";
 import { LabeledAddress } from "@/components/labeled-address";
 import { ArrowRight, ChevronDown, ExternalLink } from "lucide-react";
 import Image from "next/image";
+import { NEW_TRANSACTION_HIGHLIGHT_DURATION_MS } from "@/lib/constants";
 
 interface TransactionRowHeaderProps {
   transaction: ClassifiedTransaction;
@@ -278,7 +279,7 @@ interface TransactionRowProps {
   labels?: Map<string, string>;
 }
 
-export function TransactionRow({
+export const TransactionRow = memo(function TransactionRow({
   transaction,
   walletAddress,
   isNew = false,
@@ -286,33 +287,41 @@ export function TransactionRow({
 }: TransactionRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showNewAnimation, setShowNewAnimation] = useState(isNew);
-  const direction = getTransactionDirection(transaction, walletAddress);
+
+  // Memoize direction calculation - expensive operation that only depends on tx and wallet
+  const direction = useMemo(
+    () => getTransactionDirection(transaction, walletAddress),
+    [transaction, walletAddress],
+  );
 
   // Sync animation state when isNew prop changes
   useEffect(() => {
     if (isNew) {
       setShowNewAnimation(true);
       // Clear the "new" highlight after animation completes
-      const timer = setTimeout(() => setShowNewAnimation(false), 3000);
+      const timer = setTimeout(
+        () => setShowNewAnimation(false),
+        NEW_TRANSACTION_HIGHLIGHT_DURATION_MS,
+      );
       return () => clearTimeout(timer);
     }
   }, [isNew]);
 
-  // Get animation class based on transaction direction
-  const getNewAnimationClass = () => {
+  // Memoize animation class calculation
+  const newAnimationClass = useMemo(() => {
     if (!showNewAnimation) return "";
     if (direction.direction === "incoming")
       return "animate-new-transaction-incoming";
     if (direction.direction === "outgoing")
       return "animate-new-transaction-outgoing";
     return "animate-new-transaction-neutral";
-  };
+  }, [showNewAnimation, direction.direction]);
 
   return (
     <div
       className={cn(
         "border-b border-neutral-100 last:border-b-0 transition-all duration-500",
-        getNewAnimationClass(),
+        newAnimationClass,
       )}
     >
       <TransactionRowHeader
@@ -329,4 +338,4 @@ export function TransactionRow({
       />
     </div>
   );
-}
+});

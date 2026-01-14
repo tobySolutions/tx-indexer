@@ -2,8 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { createIndexer } from "../client";
 import { address, signature } from "@solana/kit";
 
-const RPC_URL =
-  "https://mainnet.helius-rpc.com/?api-key=c2db5d9a-e490-4976-8edc-c859c5d5aaed";
+const RPC_URL = "https://api.mainnet-beta.solana.com";
 
 // Test transaction: 1 USDC -> USDG swap
 const TEST_SWAP_SIGNATURE =

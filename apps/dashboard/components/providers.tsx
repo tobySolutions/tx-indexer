@@ -3,9 +3,10 @@
 import type { SolanaClientConfig } from "@solana/client";
 import { SolanaProvider } from "@solana/react-hooks";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, type PropsWithChildren } from "react";
+import { useState, useEffect, type PropsWithChildren } from "react";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth";
+import { cleanupStaleSolanaStorage } from "@/lib/storage-cleanup";
 
 const config: SolanaClientConfig = {
   // Use public RPC URL for client-side wallet operations (domain-restricted key)
@@ -13,6 +14,11 @@ const config: SolanaClientConfig = {
 };
 
 export function Providers({ children }: PropsWithChildren) {
+  // Clean up stale localStorage entries on mount
+  useEffect(() => {
+    cleanupStaleSolanaStorage();
+  }, []);
+
   const [queryClient] = useState(
     () =>
       new QueryClient({

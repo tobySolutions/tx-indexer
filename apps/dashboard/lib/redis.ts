@@ -1,21 +1,85 @@
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
-// Initialize Redis client
-// Requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN env vars
-export const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+// Initialize Redis client lazily to avoid errors when env vars are missing
+let _redis: Redis | null = null;
 
-// Rate limiter for auth endpoints
-// 10 requests per 60 seconds per IP
-export const authRateLimiter = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(10, "60 s"),
-  analytics: true,
-  prefix: "ratelimit:auth",
-});
+/**
+ * Get the Redis client instance
+ * Returns null if Redis is not configured
+ */
+export function getRedis(): Redis | null {
+  if (_redis) return _redis;
+
+  if (!isRedisConfigured()) {
+    return null;
+  }
+
+  _redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
+
+  return _redis;
+}
+
+// Legacy export for backwards compatibility
+// Only use this when you've already checked isRedisConfigured()
+export const redis = {
+  get get() {
+    const r = getRedis();
+    if (!r) throw new Error("Redis not configured");
+    return r.get.bind(r);
+  },
+  get set() {
+    const r = getRedis();
+    if (!r) throw new Error("Redis not configured");
+    return r.set.bind(r);
+  },
+  get del() {
+    const r = getRedis();
+    if (!r) throw new Error("Redis not configured");
+    return r.del.bind(r);
+  },
+  get getdel() {
+    const r = getRedis();
+    if (!r) throw new Error("Redis not configured");
+    return r.getdel.bind(r);
+  },
+  get scan() {
+    const r = getRedis();
+    if (!r) throw new Error("Redis not configured");
+    return r.scan.bind(r);
+  },
+};
+
+// Rate limiter - only create if Redis is configured
+let _authRateLimiter: Ratelimit | null = null;
+
+export function getAuthRateLimiter(): Ratelimit | null {
+  if (_authRateLimiter) return _authRateLimiter;
+
+  const r = getRedis();
+  if (!r) return null;
+
+  _authRateLimiter = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(10, "60 s"),
+    analytics: true,
+    prefix: "ratelimit:auth",
+  });
+
+  return _authRateLimiter;
+}
+
+// Legacy export for backwards compatibility
+export const authRateLimiter = {
+  get limit() {
+    const limiter = getAuthRateLimiter();
+    if (!limiter) throw new Error("Redis not configured");
+    return limiter.limit.bind(limiter);
+  },
+};
 
 // Nonce storage keys
 const NONCE_PREFIX = "auth:nonce:";

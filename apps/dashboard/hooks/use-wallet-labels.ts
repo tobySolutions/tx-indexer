@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getWalletLabels, type WalletLabel } from "@/app/actions/wallet-labels";
+import { getWalletLabels } from "@/app/actions/wallet-labels";
 import { useAuth } from "@/lib/auth";
 
 interface UseWalletLabelsReturn {

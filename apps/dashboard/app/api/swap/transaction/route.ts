@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(swapData);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to build swap transaction" },
       { status: 500 },

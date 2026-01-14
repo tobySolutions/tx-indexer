@@ -11,8 +11,13 @@ import {
   PortfolioCardSkeleton,
   TransactionsListSkeleton,
 } from "@/components/skeletons";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { Inbox, Wallet, Clock } from "lucide-react";
 import localFont from "next/font/local";
+import {
+  FAST_POLLING_DURATION_MS,
+  STATEMENT_WINDOW_DAYS,
+} from "@/lib/constants";
 
 const bitcountFont = localFont({
   src: "../app/fonts/Bitcount.ttf",
@@ -39,7 +44,7 @@ export function DashboardContent() {
   const handleTransactionSuccess = () => {
     setFastPolling(true);
     refetch();
-    setTimeout(() => setFastPolling(false), 30 * 1000);
+    setTimeout(() => setFastPolling(false), FAST_POLLING_DURATION_MS);
   };
 
   if (!isConnected) {
@@ -67,7 +72,7 @@ export function DashboardContent() {
             </h2>
             <p className="text-sm text-neutral-400 mt-1 flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
-              Statement window: last 31 days
+              Statement window: last {STATEMENT_WINDOW_DAYS} days
             </p>
           </div>
           <div className="border border-neutral-200 rounded-lg bg-white p-8 text-center">
@@ -101,7 +106,7 @@ export function DashboardContent() {
             </h2>
             <p className="text-sm text-neutral-400 mt-1 flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
-              Statement window: last 31 days
+              Statement window: last {STATEMENT_WINDOW_DAYS} days
             </p>
           </div>
           <TransactionsListSkeleton count={5} />
@@ -113,15 +118,19 @@ export function DashboardContent() {
   return (
     <main className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <PortfolioCard
-          portfolio={portfolio}
-          walletAddress={address}
-          onSend={() => setSendDrawerOpen(true)}
-          onTrade={() => setTradeDrawerOpen(true)}
-        />
+        <ErrorBoundary section="portfolio">
+          <PortfolioCard
+            portfolio={portfolio}
+            walletAddress={address}
+            onSend={() => setSendDrawerOpen(true)}
+            onTrade={() => setTradeDrawerOpen(true)}
+          />
+        </ErrorBoundary>
       </div>
 
-      <TransactionsFeed walletAddress={address!} fastPolling={fastPolling} />
+      <ErrorBoundary section="transactions">
+        <TransactionsFeed walletAddress={address!} fastPolling={fastPolling} />
+      </ErrorBoundary>
 
       <SendTransferDrawer
         open={sendDrawerOpen}

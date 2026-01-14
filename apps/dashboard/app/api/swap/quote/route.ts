@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     const quoteResponse = await response.json();
     return NextResponse.json(quoteResponse);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to fetch quote from Jupiter" },
       { status: 500 },

@@ -9,15 +9,21 @@ import {
   type DashboardData,
 } from "@/app/actions/dashboard";
 import type { ClassifiedTransaction } from "tx-indexer";
+import {
+  USDC_MINT,
+  EMPTY_DASHBOARD_QUERY_KEY,
+  STANDARD_POLLING_INTERVAL_MS,
+  FAST_POLLING_INTERVAL_MS,
+  STANDARD_STALE_TIME_MS,
+  FAST_STALE_TIME_MS,
+  DEFAULT_TRANSACTION_LIMIT,
+} from "@/lib/constants";
 
 // Query key factory for dashboard data
 export const dashboardKeys = {
   all: ["dashboard"] as const,
   data: (address: string) => [...dashboardKeys.all, "data", address] as const,
 };
-
-// USDC mint address
-const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 interface UseDashboardDataOptions {
   limit?: number;
@@ -37,14 +43,14 @@ export function useDashboardData(
   address: string | null,
   options: UseDashboardDataOptions = {},
 ) {
-  const { limit = 10, fastPolling = false } = options;
+  const { limit = DEFAULT_TRANSACTION_LIMIT, fastPolling = false } = options;
   const queryClient = useQueryClient();
 
   const hasInitialData = useRef(false);
   const latestSignatureRef = useRef<string | null>(null);
 
   const query = useQuery<DashboardData | null>({
-    queryKey: address ? dashboardKeys.data(address) : ["dashboard", "empty"],
+    queryKey: address ? dashboardKeys.data(address) : EMPTY_DASHBOARD_QUERY_KEY,
     queryFn: async ({ queryKey }) => {
       if (!address) return null;
 
@@ -83,9 +89,11 @@ export function useDashboardData(
       return getDashboardData(address, limit);
     },
     enabled: !!address,
-    // Polling intervals
-    refetchInterval: fastPolling ? 10 * 1000 : 60 * 1000,
-    staleTime: fastPolling ? 5 * 1000 : 30 * 1000,
+    // Polling intervals - use constants for consistency
+    refetchInterval: fastPolling
+      ? FAST_POLLING_INTERVAL_MS
+      : STANDARD_POLLING_INTERVAL_MS,
+    staleTime: fastPolling ? FAST_STALE_TIME_MS : STANDARD_STALE_TIME_MS,
     refetchOnWindowFocus: true,
     placeholderData: (previousData) => previousData,
   });

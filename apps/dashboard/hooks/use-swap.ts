@@ -9,15 +9,11 @@ import {
   type SwapToken,
 } from "@/lib/swap-tokens";
 import {
-  JUPITER_CONFIG,
   isQuoteValid,
   getQuoteTimeRemaining,
   type JupiterQuoteResponse,
 } from "@/lib/jupiter";
-import {
-  signAndSendTransaction,
-  getDetectedWalletName,
-} from "@/lib/wallet-transactions";
+import { signAndSendTransaction } from "@/lib/wallet-transactions";
 
 // Use our own API routes to proxy Jupiter requests (avoids CORS issues)
 const JUPITER_QUOTE_API = "/api/swap/quote";
@@ -261,7 +257,6 @@ export function useSwap(): UseSwapReturn {
 
       try {
         const walletAddress = wallet.session.account.address.toString();
-        const detectedWallet = getDetectedWalletName();
 
         // Get swap transaction from Jupiter
         const swapResponse = await fetch(JUPITER_SWAP_API, {

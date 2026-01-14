@@ -21,6 +21,7 @@ import {
   isMobileDevice,
   isInWalletBrowser,
   hasWalletExtension,
+  isPWA,
 } from "@/lib/mobile";
 import { QrWalletConnect } from "./qr-wallet-connect";
 import {
@@ -47,7 +48,7 @@ const MOBILE_WALLETS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "phantom", label: "phantom" },
 ];
 
-type ConnectionMode = "desktop" | "mobile" | "wallet-browser";
+type ConnectionMode = "desktop" | "mobile" | "wallet-browser" | "pwa";
 
 export function ConnectWalletButton() {
   return (
@@ -110,6 +111,8 @@ function ConnectWalletButtonInner() {
   useEffect(() => {
     if (isInWalletBrowser()) {
       setConnectionMode("wallet-browser");
+    } else if (isPWA() && isMobileDevice()) {
+      setConnectionMode("pwa");
     } else if (isMobileDevice()) {
       setConnectionMode("mobile");
     } else {
@@ -464,6 +467,7 @@ function ConnectWalletButtonInner() {
     connectionMode === "desktop" ||
     connectionMode === "wallet-browser" ||
     hasWalletExtension();
+  const showPWAOptions = connectionMode === "pwa";
 
   return (
     <>
@@ -617,6 +621,30 @@ function ConnectWalletButtonInner() {
                         className="w-full px-3 py-2 text-sm text-left hover:bg-neutral-50 transition-colors flex justify-between items-center cursor-pointer text-neutral-500"
                       >
                         <span>open in wallet browser</span>
+                        <span className="text-neutral-400">→</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {showPWAOptions && (
+                  <>
+                    <div className="px-3 py-2">
+                      <p className="text-xs text-neutral-500 mb-2">
+                        For the best experience, open this app in your
+                        wallet&apos;s browser
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={handleOpenInWallet}
+                        className="w-full px-3 py-2 text-sm text-left hover:bg-neutral-50 transition-colors flex justify-between items-center cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="h-4 w-4 text-neutral-400" />
+                          <span>open in Phantom</span>
+                        </div>
                         <span className="text-neutral-400">→</span>
                       </button>
                     </div>

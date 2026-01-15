@@ -1,18 +1,16 @@
-import localFont from "next/font/local";
 import { ConnectWalletButton } from "./connect-wallet-button";
+import { MobileSidebar } from "./sidebar";
 
-const bitcountFont = localFont({
-  src: "../app/fonts/Bitcount.ttf",
-  variable: "--font-bitcount",
-});
+interface HeaderProps {
+  showMobileNav?: boolean;
+}
 
-export function Header() {
+export function Header({ showMobileNav = true }: HeaderProps) {
   return (
     <header className="border-b border-neutral-200 bg-white">
-      <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-        <h1 className={`${bitcountFont.className} text-2xl text-neutral-900`}>
-          <span className="text-vibrant-red">{"//"}</span> dashboard
-        </h1>
+      <div className="px-4 py-3 flex items-center justify-between">
+        {showMobileNav ? <MobileSidebar /> : <div />}
+        <div className="flex-1" />
         <ConnectWalletButton />
       </div>
     </header>

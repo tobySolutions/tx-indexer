@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Header } from "@/components/header";
 import { NoisyBackground } from "@/components/noisy-bg";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -34,7 +33,6 @@ export default function RootLayout({
         <Providers>
           <NoisyBackground />
           <GridBackground />
-          <Header />
           {children}
         </Providers>
       </body>

@@ -98,6 +98,7 @@ function TransactionRowHeader({
               "h-4 w-4 text-neutral-400 transition-transform duration-200",
               isExpanded && "rotate-180",
             )}
+            aria-hidden="true"
           />
         </div>
       </div>
@@ -175,7 +176,10 @@ function TransactionRowDetails({
                       {classification.primaryAmount.amountUi.toLocaleString()}{" "}
                       {classification.primaryAmount.token.symbol}
                     </span>
-                    <ArrowRight className="h-4 w-4 text-neutral-400 mx-1" />
+                    <ArrowRight
+                      className="h-4 w-4 text-neutral-400 mx-1"
+                      aria-hidden="true"
+                    />
                     <TokenIcon
                       symbol={classification.secondaryAmount.token.symbol}
                       logoURI={classification.secondaryAmount.token.logoURI}
@@ -262,7 +266,7 @@ function TransactionRowDetails({
                 className="inline-flex items-center gap-1 text-sm text-vibrant-red hover:underline cursor-pointer"
               >
                 view full details
-                <ExternalLink className="h-3 w-3" />
+                <ExternalLink className="h-3 w-3" aria-hidden="true" />
               </a>
             </div>
           </div>

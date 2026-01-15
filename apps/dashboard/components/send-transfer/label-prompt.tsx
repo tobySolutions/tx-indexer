@@ -19,7 +19,7 @@ export function LabelPrompt({
   return (
     <div className="mt-4 p-4 rounded-lg bg-neutral-50 border border-neutral-200">
       <div className="flex items-center gap-2 mb-3">
-        <Tag className="h-4 w-4 text-neutral-500" />
+        <Tag className="h-4 w-4 text-neutral-500" aria-hidden="true" />
         <p className="text-sm font-medium text-neutral-700">
           save this contact?
         </p>
@@ -32,7 +32,7 @@ export function LabelPrompt({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="e.g., alice, rent, savings"
-        className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-white text-sm mb-3 focus:outline-none focus:border-vibrant-red"
+        className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-white text-sm mb-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red"
       />
       <div className="flex gap-2">
         <button
@@ -54,9 +54,9 @@ export function LabelPrompt({
           )}
         >
           {isSaving ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
           ) : (
-            <Check className="h-3 w-3" />
+            <Check className="h-3 w-3" aria-hidden="true" />
           )}
           save
         </button>
@@ -83,7 +83,7 @@ export function SignInPrompt({
   return (
     <div className="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-200">
       <div className="flex items-center gap-2 mb-3">
-        <LogIn className="h-4 w-4 text-amber-600" />
+        <LogIn className="h-4 w-4 text-amber-600" aria-hidden="true" />
         <p className="text-sm font-medium text-amber-800">
           sign in to use contacts
         </p>
@@ -93,7 +93,7 @@ export function SignInPrompt({
       </p>
       {error && (
         <p className="text-xs text-red-600 mb-3 flex items-center gap-1">
-          <AlertCircle className="h-3 w-3" />
+          <AlertCircle className="h-3 w-3" aria-hidden="true" />
           {error}
         </p>
       )}
@@ -117,11 +117,11 @@ export function SignInPrompt({
           )}
         >
           {isReauthenticating ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
           ) : (
-            <LogIn className="h-3 w-3" />
+            <LogIn className="h-3 w-3" aria-hidden="true" />
           )}
-          {isReauthenticating ? "signing in..." : "sign in"}
+          {isReauthenticating ? "signing in…" : "sign in"}
         </button>
       </div>
     </div>

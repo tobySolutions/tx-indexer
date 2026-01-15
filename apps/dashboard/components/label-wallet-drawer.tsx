@@ -147,7 +147,7 @@ export function LabelWalletDrawer({
                   placeholder="Enter Solana address"
                   className={cn(
                     "w-full px-3 py-2.5 rounded-lg border bg-white text-sm font-mono transition-colors",
-                    "focus:outline-none focus:border-vibrant-red",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
                     error && !isAddressValid
                       ? "border-red-300"
                       : "border-neutral-200",
@@ -177,7 +177,7 @@ export function LabelWalletDrawer({
                   disabled={!isAddressValid}
                   className={cn(
                     "w-full px-3 py-2.5 rounded-lg border bg-white text-sm transition-colors",
-                    "focus:outline-none focus:border-vibrant-red",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
                     "disabled:bg-neutral-50 disabled:text-neutral-400",
                     error && isAddressValid
                       ? "border-red-300"

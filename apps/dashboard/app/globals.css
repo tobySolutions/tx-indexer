@@ -177,6 +177,40 @@
   animation: dropdown-in 0.15s ease-out forwards;
 }
 
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-new-transaction-incoming,
+  .animate-new-transaction-outgoing,
+  .animate-new-transaction-neutral {
+    animation: none;
+    background-color: transparent;
+  }
+
+  .animate-dropdown-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  [data-sheet-overlay][data-state="open"],
+  [data-sheet-overlay][data-state="closed"] {
+    animation: none;
+  }
+
+  [data-sheet-content][data-state="open"],
+  [data-sheet-content][data-state="closed"] {
+    animation: none;
+  }
+
+  .animate-spin {
+    animation: none;
+  }
+
+  .animate-pulse {
+    animation: none;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -238,6 +272,17 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+  }
+
+  /* Touch optimization: prevent 300ms delay on tap for interactive elements */
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  [role="button"],
+  [role="menuitem"] {
+    touch-action: manipulation;
   }
 }
 

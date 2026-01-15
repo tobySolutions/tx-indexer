@@ -68,6 +68,20 @@ export function QrWalletConnect({
     return () => clearInterval(interval);
   }, [isOpen, generateNewQr]);
 
+  // Handle Escape key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const handleTransitionEnd = () => {
     if (!isOpen) {
       setMounted(false);
@@ -79,32 +93,45 @@ export function QrWalletConnect({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="qr-modal-title"
       className={cn(
         "fixed inset-0 z-50 transition-opacity duration-300",
         visible ? "opacity-100" : "opacity-0 pointer-events-none",
       )}
       onTransitionEnd={handleTransitionEnd}
     >
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div
           className={cn(
-            "w-full max-w-sm bg-white rounded-2xl transition-transform duration-300 ease-out",
+            "w-full max-w-sm bg-white rounded-2xl transition-transform duration-300 ease-out overscroll-contain",
             visible ? "scale-100" : "scale-95",
           )}
         >
           <div className="flex items-center justify-between p-4 border-b border-neutral-100">
             <div className="flex items-center gap-2">
-              <Smartphone className="h-5 w-5 text-neutral-600" />
-              <h2 className="text-lg font-medium">scan with mobile</h2>
+              <Smartphone
+                className="h-5 w-5 text-neutral-600"
+                aria-hidden="true"
+              />
+              <h2 id="qr-modal-title" className="text-lg font-medium">
+                scan with mobile
+              </h2>
             </div>
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close QR code modal"
               className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
             >
-              <X className="h-5 w-5 text-neutral-500" />
+              <X className="h-5 w-5 text-neutral-500" aria-hidden="true" />
             </button>
           </div>
 
@@ -133,7 +160,7 @@ export function QrWalletConnect({
               onClick={generateNewQr}
               className="flex items-center justify-center gap-2 w-full p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
               <span className="text-sm">refresh QR code</span>
             </button>
           </div>

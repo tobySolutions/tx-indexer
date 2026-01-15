@@ -14,11 +14,11 @@ function formatUsd(value: number): string {
 export function getStatusMessage(status: TransferStatus): string {
   switch (status) {
     case "preparing":
-      return "Preparing transaction...";
+      return "Preparing transaction…";
     case "signing":
-      return "Please sign in your wallet...";
+      return "Please sign in your wallet…";
     case "confirming":
-      return "Confirming transaction...";
+      return "Confirming transaction…";
     case "success":
       return "Transfer complete!";
     case "error":
@@ -35,7 +35,10 @@ interface TransferringOverlayProps {
 export function TransferringOverlay({ status }: TransferringOverlayProps) {
   return (
     <div className="absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-vibrant-red mb-4" />
+      <Loader2
+        className="h-8 w-8 animate-spin text-vibrant-red mb-4"
+        aria-hidden="true"
+      />
       <p className="text-sm font-medium text-neutral-700">
         {getStatusMessage(status)}
       </p>
@@ -63,7 +66,7 @@ export function TransferSuccess({
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-        <CheckCircle2 className="h-8 w-8 text-green-600" />
+        <CheckCircle2 className="h-8 w-8 text-green-600" aria-hidden="true" />
       </div>
       <h3 className="text-lg font-medium text-neutral-900 mb-2">
         Transfer complete!
@@ -79,7 +82,7 @@ export function TransferSuccess({
         className="text-sm text-vibrant-red hover:underline flex items-center gap-1 mb-6 cursor-pointer"
       >
         View transaction
-        <ExternalLink className="h-3 w-3" />
+        <ExternalLink className="h-3 w-3" aria-hidden="true" />
       </a>
       <button
         type="button"
@@ -102,7 +105,7 @@ export function TransferError({ error, onClose, onRetry }: TransferErrorProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-        <XCircle className="h-8 w-8 text-red-600" />
+        <XCircle className="h-8 w-8 text-red-600" aria-hidden="true" />
       </div>
       <h3 className="text-lg font-medium text-neutral-900 mb-2">
         Transfer failed

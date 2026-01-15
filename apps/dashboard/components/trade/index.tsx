@@ -150,7 +150,10 @@ export function TradeDrawer({
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-vibrant-red/10">
-              <ArrowLeftRight className="h-4 w-4 text-vibrant-red" />
+              <ArrowLeftRight
+                className="h-4 w-4 text-vibrant-red"
+                aria-hidden="true"
+              />
             </div>
             trade
           </SheetTitle>
@@ -209,9 +212,13 @@ export function TradeDrawer({
                 <button
                   type="button"
                   onClick={handleSwapDirection}
+                  aria-label="Swap token direction"
                   className="p-2 rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors cursor-pointer"
                 >
-                  <ArrowUpDown className="h-4 w-4 text-neutral-500" />
+                  <ArrowUpDown
+                    className="h-4 w-4 text-neutral-500"
+                    aria-hidden="true"
+                  />
                 </button>
               </div>
 
@@ -241,7 +248,10 @@ export function TradeDrawer({
 
               {isMobileDeepLink && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <AlertCircle
+                    className="h-4 w-4 text-amber-600 shrink-0 mt-0.5"
+                    aria-hidden="true"
+                  />
                   <p className="text-xs text-amber-700">
                     Trading is not yet supported via mobile deep links. Use
                     &quot;Open in wallet browser&quot; for full functionality.
@@ -269,7 +279,7 @@ export function TradeDrawer({
                     : "bg-neutral-200 text-neutral-400 cursor-not-allowed",
                 )}
               >
-                <ArrowLeftRight className="h-4 w-4" />
+                <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
                 trade
               </button>
             </div>

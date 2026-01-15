@@ -36,7 +36,7 @@ export function PortfolioCard({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="p-2 rounded-lg bg-neutral-100 shrink-0">
-            <Wallet className="h-5 w-5 text-neutral-600" />
+            <Wallet className="h-5 w-5 text-neutral-600" aria-hidden="true" />
           </div>
           <span className="text-neutral-500 shrink-0">portfolio</span>
           {walletAddress && (

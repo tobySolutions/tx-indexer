@@ -291,7 +291,7 @@ export function SendTransferDrawer({
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-vibrant-red/10">
-              <Send className="h-4 w-4 text-vibrant-red" />
+              <Send className="h-4 w-4 text-vibrant-red" aria-hidden="true" />
             </div>
             send
           </SheetTitle>
@@ -369,18 +369,20 @@ export function SendTransferDrawer({
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="What's this transfer for?"
+                  placeholder="What's this transfer for…"
+                  name="transfer-memo"
+                  autoComplete="off"
                   rows={2}
                   maxLength={256}
                   className={cn(
                     "w-full px-3 py-2.5 rounded-lg border bg-white text-sm transition-colors resize-none",
-                    "focus:outline-none focus:border-vibrant-red",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
                     memoError ? "border-red-300" : "border-neutral-200",
                   )}
                 />
                 {memoError && (
                   <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
+                    <AlertCircle className="h-3 w-3" aria-hidden="true" />
                     {memoError}
                   </p>
                 )}
@@ -420,7 +422,10 @@ export function SendTransferDrawer({
 
             {isMobileDeepLink && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 mt-4">
-                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <AlertCircle
+                  className="h-4 w-4 text-amber-600 shrink-0 mt-0.5"
+                  aria-hidden="true"
+                />
                 <p className="text-xs text-amber-700">
                   Sending is not yet supported via mobile deep links. Use
                   &quot;Open in wallet browser&quot; for full functionality.
@@ -446,7 +451,7 @@ export function SendTransferDrawer({
                     : "bg-neutral-200 text-neutral-400 cursor-not-allowed",
                 )}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-4 w-4" aria-hidden="true" />
                 {showLabelPrompt ? "send without saving" : "send"}
               </button>
             </div>

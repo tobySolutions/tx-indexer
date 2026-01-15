@@ -126,7 +126,7 @@ export function TransactionsFeed({
         <FeedHeader onRefresh={handleRefresh} isRefreshing={isFetching} />
         <div className="border border-neutral-200 rounded-lg bg-white p-8 text-center">
           <div className="w-12 h-12 rounded-full bg-neutral-100 mx-auto mb-4 flex items-center justify-center">
-            <Inbox className="h-6 w-6 text-neutral-400" />
+            <Inbox className="h-6 w-6 text-neutral-400" aria-hidden="true" />
           </div>
           <p className="text-neutral-600 mb-1">no transactions found</p>
           <p className="text-sm text-neutral-400">
@@ -163,8 +163,8 @@ export function TransactionsFeed({
 
         {isFetchingNextPage && (
           <div className="flex items-center justify-center py-4 gap-2 text-neutral-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading more...</span>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            <span className="text-sm">Loading more…</span>
           </div>
         )}
 
@@ -200,13 +200,13 @@ function FeedHeader({
           </h2>
           <div className="flex items-center gap-2 mt-1">
             <p className="text-sm text-neutral-400 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
+              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
               Statement window: last {STATEMENT_WINDOW_DAYS} days
             </p>
             {isCheckingForNew && (
               <span className="text-xs text-neutral-400 flex items-center gap-1 bg-neutral-100 px-2 py-0.5 rounded-full">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Checking for new...
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                Checking for new…
               </span>
             )}
           </div>
@@ -215,13 +215,13 @@ function FeedHeader({
           type="button"
           onClick={onRefresh}
           disabled={isRefreshing}
+          aria-label="Refresh transactions"
           className={cn(
             "p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer",
             isRefreshing && "animate-spin",
           )}
-          title="Refresh"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
     </div>

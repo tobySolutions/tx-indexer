@@ -325,12 +325,48 @@ function ConnectWalletButtonInner() {
       }
     }
 
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!open) return;
+
+      if (event.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+
+      // Handle arrow key navigation within dropdown
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const focusableElements =
+          dropdownRef.current?.querySelectorAll<HTMLButtonElement>(
+            "button:not([disabled])",
+          );
+        if (!focusableElements?.length) return;
+
+        const currentIndex = Array.from(focusableElements).findIndex(
+          (el) => el === document.activeElement,
+        );
+
+        let nextIndex: number;
+        if (event.key === "ArrowDown") {
+          nextIndex =
+            currentIndex < focusableElements.length - 1 ? currentIndex + 1 : 0;
+        } else {
+          nextIndex =
+            currentIndex > 0 ? currentIndex - 1 : focusableElements.length - 1;
+        }
+
+        focusableElements[nextIndex]?.focus();
+      }
+    }
+
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
 
@@ -476,6 +512,13 @@ function ConnectWalletButtonInner() {
           type="button"
           onClick={() => setOpen((prev) => !prev)}
           disabled={isConnecting || isWalletConnecting}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-label={
+            address
+              ? `Wallet menu for ${truncate(address)}`
+              : "Sign in to wallet"
+          }
           className={cn(
             "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors",
             "bg-vibrant-red text-white hover:bg-vibrant-red/90",
@@ -486,13 +529,16 @@ function ConnectWalletButtonInner() {
         >
           {isConnecting || isWalletConnecting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>signing in...</span>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <span>signing in…</span>
             </>
           ) : address ? (
             <div className="flex items-center gap-2">
               {isSessionExpired && (
-                <AlertCircle className="h-4 w-4 text-amber-200" />
+                <AlertCircle
+                  className="h-4 w-4 text-amber-200"
+                  aria-hidden="true"
+                />
               )}
               <span className="font-mono">{truncate(address)}</span>
             </div>
@@ -502,14 +548,18 @@ function ConnectWalletButtonInner() {
           {!isConnecting &&
             !isWalletConnecting &&
             (open ? (
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-4 w-4" aria-hidden="true" />
             ) : (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
             ))}
         </button>
 
         {open && !isConnecting && !isWalletConnecting && (
-          <div className="absolute right-0 z-10 mt-2 w-full min-w-[240px] rounded-lg border border-neutral-200 bg-white shadow-lg animate-dropdown-in">
+          <div
+            role="menu"
+            aria-orientation="vertical"
+            className="absolute right-0 z-10 mt-2 w-full min-w-[240px] rounded-lg border border-neutral-200 bg-white shadow-lg animate-dropdown-in"
+          >
             {isConnected ? (
               <div className="p-2 space-y-2">
                 <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
@@ -523,7 +573,7 @@ function ConnectWalletButtonInner() {
                       </span>
                     ) : (
                       <span className="text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
+                        <AlertCircle className="h-3 w-3" aria-hidden="true" />
                         session expired
                       </span>
                     )}
@@ -551,8 +601,11 @@ function ConnectWalletButtonInner() {
                   >
                     {isReAuthenticating ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        signing in...
+                        <Loader2
+                          className="h-4 w-4 animate-spin"
+                          aria-hidden="true"
+                        />
+                        signing in…
                       </>
                     ) : isDesktopConnected && !hasSignMessageSupport ? (
                       "wallet doesn't support signing"
@@ -564,6 +617,7 @@ function ConnectWalletButtonInner() {
 
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => void handleDisconnect()}
                   className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors cursor-pointer"
                 >
@@ -582,13 +636,16 @@ function ConnectWalletButtonInner() {
                         <button
                           key={connector.id}
                           type="button"
+                          role="menuitem"
                           onClick={() =>
                             void handleDesktopConnect(connector.id)
                           }
                           className="w-full px-3 py-2 text-sm text-left hover:bg-neutral-50 transition-colors flex justify-between items-center cursor-pointer"
                         >
                           <span>{connector.label}</span>
-                          <span className="text-neutral-400">→</span>
+                          <span className="text-neutral-400" aria-hidden="true">
+                            →
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -605,23 +662,32 @@ function ConnectWalletButtonInner() {
                         <button
                           key={mobileWallet.id}
                           type="button"
+                          role="menuitem"
                           onClick={() => handleMobileConnect(mobileWallet.id)}
                           className="w-full px-3 py-2 text-sm text-left hover:bg-neutral-50 transition-colors flex justify-between items-center cursor-pointer"
                         >
                           <div className="flex items-center gap-2">
-                            <Smartphone className="h-4 w-4 text-neutral-400" />
+                            <Smartphone
+                              className="h-4 w-4 text-neutral-400"
+                              aria-hidden="true"
+                            />
                             <span>{mobileWallet.label}</span>
                           </div>
-                          <span className="text-neutral-400">→</span>
+                          <span className="text-neutral-400" aria-hidden="true">
+                            →
+                          </span>
                         </button>
                       ))}
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={handleOpenInWallet}
                         className="w-full px-3 py-2 text-sm text-left hover:bg-neutral-50 transition-colors flex justify-between items-center cursor-pointer text-neutral-500"
                       >
                         <span>open in wallet browser</span>
-                        <span className="text-neutral-400">→</span>
+                        <span className="text-neutral-400" aria-hidden="true">
+                          →
+                        </span>
                       </button>
                     </div>
                   </>
@@ -638,14 +704,20 @@ function ConnectWalletButtonInner() {
                     <div className="space-y-1">
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={handleOpenInWallet}
                         className="w-full px-3 py-2 text-sm text-left hover:bg-neutral-50 transition-colors flex justify-between items-center cursor-pointer"
                       >
                         <div className="flex items-center gap-2">
-                          <Smartphone className="h-4 w-4 text-neutral-400" />
+                          <Smartphone
+                            className="h-4 w-4 text-neutral-400"
+                            aria-hidden="true"
+                          />
                           <span>open in Phantom</span>
                         </div>
-                        <span className="text-neutral-400">→</span>
+                        <span className="text-neutral-400" aria-hidden="true">
+                          →
+                        </span>
                       </button>
                     </div>
                   </>
@@ -655,6 +727,7 @@ function ConnectWalletButtonInner() {
                   <div className="border-t border-neutral-100 mt-2 pt-2">
                     <button
                       type="button"
+                      role="menuitem"
                       onClick={() => {
                         setOpen(false);
                         setShowQrModal(true);
@@ -662,10 +735,12 @@ function ConnectWalletButtonInner() {
                       className="w-full px-3 py-2 text-sm text-left hover:bg-neutral-50 transition-colors flex justify-between items-center cursor-pointer text-neutral-500"
                     >
                       <div className="flex items-center gap-2">
-                        <QrCode className="h-4 w-4" />
+                        <QrCode className="h-4 w-4" aria-hidden="true" />
                         <span>scan with mobile</span>
                       </div>
-                      <span className="text-neutral-400">→</span>
+                      <span className="text-neutral-400" aria-hidden="true">
+                        →
+                      </span>
                     </button>
                   </div>
                 )}

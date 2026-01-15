@@ -50,10 +50,10 @@ export function NotificationBanner() {
         className="absolute top-2 right-2 p-1 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors cursor-pointer"
         aria-label="Dismiss"
       >
-        <X className="h-3.5 w-3.5" />
+        <X className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
       <div className="flex items-center gap-2 mb-3 pr-6">
-        <Bell className="h-4 w-4 text-neutral-500" />
+        <Bell className="h-4 w-4 text-neutral-500" aria-hidden="true" />
         <p className="text-sm font-medium text-neutral-700">
           enable notifications?
         </p>
@@ -82,11 +82,11 @@ export function NotificationBanner() {
           )}
         >
           {isRequesting ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
           ) : (
-            <Bell className="h-3 w-3" />
+            <Bell className="h-3 w-3" aria-hidden="true" />
           )}
-          {isRequesting ? "enabling..." : "enable"}
+          {isRequesting ? "enabling…" : "enable"}
         </button>
       </div>
     </div>

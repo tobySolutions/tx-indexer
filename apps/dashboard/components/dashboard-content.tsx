@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useUnifiedWallet } from "@/hooks/use-unified-wallet";
@@ -42,6 +42,13 @@ export function DashboardContent() {
   const [tradeDrawerOpen, setTradeDrawerOpen] = useState(false);
   const [fastPolling, setFastPolling] = useState(false);
 
+  // Track if drawers have been opened at least once (for lazy loading with exit animations)
+  const sendDrawerMounted = useRef(false);
+  const tradeDrawerMounted = useRef(false);
+
+  if (sendDrawerOpen) sendDrawerMounted.current = true;
+  if (tradeDrawerOpen) tradeDrawerMounted.current = true;
+
   const { portfolio, balance, usdcBalance, isLoading, refetch } =
     useDashboardData(address, { fastPolling });
 
@@ -65,7 +72,10 @@ export function DashboardContent() {
           <div className="border border-neutral-200 rounded-lg bg-white p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-lg bg-neutral-100">
-                <Wallet className="h-5 w-5 text-neutral-400" />
+                <Wallet
+                  className="h-5 w-5 text-neutral-400"
+                  aria-hidden="true"
+                />
               </div>
               <span className="text-neutral-500">portfolio</span>
             </div>
@@ -82,13 +92,13 @@ export function DashboardContent() {
               transactions
             </h2>
             <p className="text-sm text-neutral-400 mt-1 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
+              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
               Statement window: last {STATEMENT_WINDOW_DAYS} days
             </p>
           </div>
           <div className="border border-neutral-200 rounded-lg bg-white p-8 text-center">
             <div className="w-12 h-12 rounded-full bg-neutral-100 mx-auto mb-4 flex items-center justify-center">
-              <Inbox className="h-6 w-6 text-neutral-400" />
+              <Inbox className="h-6 w-6 text-neutral-400" aria-hidden="true" />
             </div>
             <p className="text-neutral-600 mb-1">connect your wallet</p>
             <p className="text-sm text-neutral-400">
@@ -116,7 +126,7 @@ export function DashboardContent() {
               transactions
             </h2>
             <p className="text-sm text-neutral-400 mt-1 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
+              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
               Statement window: last {STATEMENT_WINDOW_DAYS} days
             </p>
           </div>
@@ -143,8 +153,8 @@ export function DashboardContent() {
         <TransactionsFeed walletAddress={address!} fastPolling={fastPolling} />
       </ErrorBoundary>
 
-      {/* Lazy loaded drawers - only mounted when open */}
-      {sendDrawerOpen && (
+      {/* Lazy loaded drawers - mounted after first open, kept mounted for exit animations */}
+      {sendDrawerMounted.current && (
         <SendTransferDrawer
           open={sendDrawerOpen}
           onOpenChange={setSendDrawerOpen}
@@ -153,7 +163,7 @@ export function DashboardContent() {
         />
       )}
 
-      {tradeDrawerOpen && (
+      {tradeDrawerMounted.current && (
         <TradeDrawer
           open={tradeDrawerOpen}
           onOpenChange={setTradeDrawerOpen}

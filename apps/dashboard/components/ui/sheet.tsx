@@ -50,15 +50,15 @@ const SheetContent = React.forwardRef<
       data-sheet-content=""
       onOpenAutoFocus={(e) => e.preventDefault()}
       className={cn(
-        "fixed z-50 gap-4 bg-white p-4 sm:p-6 shadow-lg pb-8 sm:pb-6",
+        "fixed z-50 gap-4 bg-white p-4 sm:p-6 shadow-lg pb-8 sm:pb-6 overflow-y-auto overscroll-contain",
         sheetVariants[side],
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 disabled:pointer-events-none">
+        <X className="h-4 w-4" aria-hidden="true" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>

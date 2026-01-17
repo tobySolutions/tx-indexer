@@ -262,6 +262,94 @@ export interface GetTransactionOptions {
   enrichTokenMetadata?: boolean;
 }
 
+// =============================================================================
+// EXPERIMENTAL: Signatures-First API Types
+// =============================================================================
+
+/**
+ * @experimental Lightweight signature information returned by getSignatures().
+ * Contains only metadata, not full transaction details.
+ *
+ * @remarks
+ * This is part of the experimental signatures-first API. The shape and behavior
+ * may change in future versions.
+ */
+export interface SignatureInfo {
+  /** Transaction signature */
+  signature: string;
+  /** Slot number */
+  slot: bigint;
+  /** Block timestamp (Unix seconds), null if not available */
+  blockTime: bigint | null;
+  /** Error if transaction failed, null if successful */
+  err: unknown | null;
+  /** Memo if present */
+  memo: string | null;
+}
+
+/**
+ * @experimental Options for getSignatures().
+ */
+export interface GetSignaturesOptions {
+  /** Maximum number of signatures to return (default: 100) */
+  limit?: number;
+  /** Fetch signatures before this signature (pagination) */
+  before?: Signature;
+  /** Fetch signatures until this signature (exclusive) */
+  until?: Signature;
+  /**
+   * Include signatures from token accounts (ATAs).
+   * This catches incoming token transfers that don't appear on the wallet address.
+   * Default: false (faster, but may miss incoming token transfers)
+   */
+  includeTokenAccounts?: boolean;
+  /** Maximum token accounts to query (default: 5) */
+  maxTokenAccounts?: number;
+  /** Retry configuration */
+  retry?: RetryConfig;
+}
+
+/**
+ * @experimental Result from getSignatures().
+ */
+export interface GetSignaturesResult {
+  /** Array of signature metadata, sorted by slot (newest first) */
+  signatures: SignatureInfo[];
+  /** The oldest signature in the result (for pagination) */
+  oldestSignature: string | null;
+  /** Whether there are more signatures to fetch */
+  hasMore: boolean;
+}
+
+/**
+ * @experimental Options for getTransactionsBySignatures().
+ */
+export interface GetTransactionsBySignaturesOptions {
+  /** Filter out spam transactions (default: true) */
+  filterSpam?: boolean;
+  /** Spam filter configuration */
+  spamConfig?: SpamFilterConfig;
+  /** Enrich NFT metadata (default: true) */
+  enrichNftMetadata?: boolean;
+  /** Enrich token metadata (default: true) */
+  enrichTokenMetadata?: boolean;
+  /** Concurrency for fetching transactions (default: 3) */
+  concurrency?: number;
+  /** Retry configuration */
+  retry?: RetryConfig;
+  /**
+   * Callback to check if a signature is already cached.
+   * Return the cached ClassifiedTransaction if available, null otherwise.
+   * This enables integration with external caches.
+   */
+  getCached?: (signature: string) => Promise<ClassifiedTransaction | null>;
+  /**
+   * Callback to cache a newly fetched and classified transaction.
+   * Called for each transaction that was fetched from RPC.
+   */
+  onFetched?: (tx: ClassifiedTransaction) => void;
+}
+
 export interface ClassifiedTransaction {
   tx: RawTransaction;
   classification: TransactionClassification;
@@ -372,6 +460,87 @@ export interface TxIndexer {
   getNftMetadataBatch(
     mintAddresses: string[],
   ): Promise<Map<string, NftMetadata>>;
+
+  // ===========================================================================
+  // EXPERIMENTAL: Signatures-First API
+  // ===========================================================================
+
+  /**
+   * @experimental Get transaction signatures for a wallet without fetching full details.
+   *
+   * This is a lightweight alternative to getTransactions() that only fetches
+   * signature metadata. Use this when you need to:
+   * - Browse transaction history efficiently
+   * - Implement custom pagination
+   * - Check which transactions exist before fetching details
+   * - Reduce RPC calls in rate-limited environments
+   *
+   * Follow up with getTransactionsBySignatures() to fetch details for specific
+   * signatures.
+   *
+   * @param walletAddress - Wallet address (string or Address type)
+   * @param options - Pagination and filtering options
+   * @returns Signature metadata and pagination info
+   *
+   * @remarks
+   * This API is experimental and may change in future versions.
+   *
+   * @example
+   * ```typescript
+   * // Get first page of signatures
+   * const result = await indexer.getSignatures("YourWallet...", { limit: 50 });
+   *
+   * // Get next page
+   * if (result.hasMore && result.oldestSignature) {
+   *   const nextPage = await indexer.getSignatures("YourWallet...", {
+   *     limit: 50,
+   *     before: result.oldestSignature,
+   *   });
+   * }
+   * ```
+   */
+  getSignatures(
+    walletAddress: AddressInput,
+    options?: GetSignaturesOptions,
+  ): Promise<GetSignaturesResult>;
+
+  /**
+   * @experimental Fetch classified transactions for specific signatures.
+   *
+   * Use this after getSignatures() to fetch full transaction details only
+   * for the signatures you need. This enables efficient pagination and
+   * selective loading.
+   *
+   * Integrates with external caches via getCached/onFetched callbacks.
+   *
+   * @param signatures - Array of signatures to fetch (string or Signature type)
+   * @param walletAddress - Wallet address for classification context
+   * @param options - Enrichment and caching options
+   * @returns Array of classified transactions
+   *
+   * @remarks
+   * This API is experimental and may change in future versions.
+   *
+   * @example
+   * ```typescript
+   * // Fetch details for specific signatures
+   * const txs = await indexer.getTransactionsBySignatures(
+   *   ["sig1...", "sig2...", "sig3..."],
+   *   "YourWallet...",
+   *   {
+   *     // Skip signatures already in your cache
+   *     getCached: async (sig) => myCache.get(sig),
+   *     // Cache newly fetched transactions
+   *     onFetched: (tx) => myCache.set(tx.tx.signature, tx),
+   *   }
+   * );
+   * ```
+   */
+  getTransactionsBySignatures(
+    signatures: SignatureInput[],
+    walletAddress: AddressInput,
+    options?: GetTransactionsBySignaturesOptions,
+  ): Promise<ClassifiedTransaction[]>;
 }
 
 export function createIndexer(options: TxIndexerOptions): TxIndexer {
@@ -731,6 +900,202 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         );
       }
       return fetchNftMetadataBatch(rpcUrl, mintAddresses);
+    },
+
+    // =========================================================================
+    // EXPERIMENTAL: Signatures-First API Implementation
+    // =========================================================================
+
+    async getSignatures(
+      walletAddress: AddressInput,
+      options: GetSignaturesOptions = {},
+    ): Promise<GetSignaturesResult> {
+      const {
+        limit = 100,
+        before,
+        until,
+        includeTokenAccounts = false,
+        maxTokenAccounts = 5,
+        retry,
+      } = options;
+
+      const normalizedAddress = normalizeAddress(walletAddress);
+      const seenSignatures = new Set<string>();
+      const allSignatures: SignatureInfo[] = [];
+
+      // Fetch wallet signatures
+      const walletSigs = await fetchWalletSignaturesPaged(
+        client.rpc,
+        normalizedAddress,
+        { pageSize: limit, before, until, retry },
+      );
+
+      for (const sig of walletSigs) {
+        const sigStr = String(sig.signature);
+        if (!seenSignatures.has(sigStr)) {
+          seenSignatures.add(sigStr);
+          allSignatures.push({
+            signature: sigStr,
+            slot: typeof sig.slot === "bigint" ? sig.slot : BigInt(sig.slot),
+            blockTime: sig.blockTime
+              ? typeof sig.blockTime === "bigint"
+                ? sig.blockTime
+                : BigInt(sig.blockTime)
+              : null,
+            err: sig.err,
+            memo: sig.memo ?? null,
+          });
+        }
+      }
+
+      // Optionally fetch token account signatures
+      if (includeTokenAccounts && maxTokenAccounts > 0) {
+        const tokenAccounts = await fetchWalletTokenAccounts(
+          client.rpc,
+          normalizedAddress,
+          retry,
+        );
+
+        if (tokenAccounts.length > 0) {
+          const limitedAccounts = tokenAccounts.slice(0, maxTokenAccounts);
+          const ataSigs = await fetchTokenAccountSignaturesThrottled(
+            client.rpc,
+            limitedAccounts,
+            { limit, before, until, retry },
+          );
+
+          for (const sig of ataSigs) {
+            const sigStr = String(sig.signature);
+            if (!seenSignatures.has(sigStr)) {
+              seenSignatures.add(sigStr);
+              allSignatures.push({
+                signature: sigStr,
+                slot:
+                  typeof sig.slot === "bigint" ? sig.slot : BigInt(sig.slot),
+                blockTime: sig.blockTime
+                  ? typeof sig.blockTime === "bigint"
+                    ? sig.blockTime
+                    : BigInt(sig.blockTime)
+                  : null,
+                err: sig.err,
+                memo: sig.memo ?? null,
+              });
+            }
+          }
+        }
+      }
+
+      // Sort by slot (newest first) and limit
+      const sorted = allSignatures
+        .sort((a, b) => (b.slot > a.slot ? 1 : b.slot < a.slot ? -1 : 0))
+        .slice(0, limit);
+
+      const oldestSignature =
+        sorted.length > 0
+          ? (sorted[sorted.length - 1]?.signature ?? null)
+          : null;
+
+      // hasMore is true if we got exactly `limit` results (there might be more)
+      const hasMore = sorted.length === limit;
+
+      return {
+        signatures: sorted,
+        oldestSignature,
+        hasMore,
+      };
+    },
+
+    async getTransactionsBySignatures(
+      signatures: SignatureInput[],
+      walletAddress: AddressInput,
+      options: GetTransactionsBySignaturesOptions = {},
+    ): Promise<ClassifiedTransaction[]> {
+      const {
+        filterSpam = true,
+        spamConfig,
+        enrichNftMetadata = true,
+        enrichTokenMetadata: enrichTokens = true,
+        concurrency = 3,
+        retry,
+        getCached,
+        onFetched,
+      } = options;
+
+      if (signatures.length === 0) {
+        return [];
+      }
+
+      const walletAddressStr = normalizeAddress(walletAddress).toString();
+      const results: ClassifiedTransaction[] = [];
+      const sigsToFetch: Signature[] = [];
+
+      // Check cache for each signature
+      if (getCached) {
+        for (const sig of signatures) {
+          const sigStr = String(sig);
+          const cached = await getCached(sigStr);
+          if (cached) {
+            results.push(cached);
+          } else {
+            sigsToFetch.push(normalizeSignature(sig));
+          }
+        }
+      } else {
+        // No cache, fetch all
+        sigsToFetch.push(...signatures.map(normalizeSignature));
+      }
+
+      // Fetch and classify missing transactions
+      if (sigsToFetch.length > 0) {
+        const rawTxs = await fetchTransactionsBatch(client.rpc, sigsToFetch, {
+          concurrency,
+          retry,
+          rpcUrl,
+        });
+
+        for (const tx of rawTxs) {
+          tx.protocol = detectProtocol(tx.programIds);
+          const legs = transactionToLegs(tx, walletAddressStr);
+          const classification = classifyTransaction(
+            legs,
+            tx,
+            walletAddressStr,
+          );
+          let classified: ClassifiedTransaction = { tx, classification, legs };
+
+          // Enrich token metadata
+          if (enrichTokens) {
+            classified = await enrichTokenMetadata(tokenFetcher, classified);
+          }
+
+          // Enrich NFT metadata
+          if (enrichNftMetadata && rpcUrl) {
+            classified = await enrichNftClassification(rpcUrl, classified);
+          }
+
+          results.push(classified);
+
+          // Notify cache callback
+          onFetched?.(classified);
+        }
+      }
+
+      // Apply spam filter
+      let finalResults = results;
+      if (filterSpam) {
+        finalResults = filterSpamTransactions(
+          results,
+          spamConfig,
+          walletAddressStr,
+        );
+      }
+
+      // Sort by blockTime (newest first)
+      return finalResults.sort((a, b) => {
+        const timeA = a.tx.blockTime ? Number(a.tx.blockTime) : 0;
+        const timeB = b.tx.blockTime ? Number(b.tx.blockTime) : 0;
+        return timeB - timeA;
+      });
     },
   };
 }

@@ -30,6 +30,11 @@ export {
   type FetchTransactionsConfig,
   type AddressInput,
   type SignatureInput,
+  // EXPERIMENTAL: Signatures-First API
+  type SignatureInfo,
+  type GetSignaturesOptions,
+  type GetSignaturesResult,
+  type GetTransactionsBySignaturesOptions,
 } from "./client";
 
 // ============================================================================
@@ -92,3 +97,15 @@ export {
   isRetryableError,
   wrapError,
 } from "./errors";
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
+export {
+  detectNewATAs,
+  hasNewATAForOwner,
+  getNewATAsForOwner,
+  detectNewATAsBatch,
+  type DetectedATA,
+} from "./utils/ata-detector";

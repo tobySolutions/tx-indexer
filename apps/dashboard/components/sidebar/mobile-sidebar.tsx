@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { Menu, X, QrCode, Send } from "lucide-react";
-import localFont from "next/font/local";
 import { SidebarNav } from "./sidebar-nav";
 import { mainNavItems, bottomNavItems } from "./nav-items";
 import { useUnifiedWallet } from "@/hooks/use-unified-wallet";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { bitcountFont } from "@/lib/fonts";
 
 const SendTransferDrawer = dynamic(
   () =>
@@ -26,16 +27,12 @@ const ReceiveDrawer = dynamic(
   { ssr: false },
 );
 
-const bitcountFont = localFont({
-  src: "../../app/fonts/Bitcount.ttf",
-  variable: "--font-bitcount",
-});
-
 export function MobileSidebar() {
   const { status, address } = useUnifiedWallet();
   const isConnected = status === "connected";
 
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [sendDrawerOpen, setSendDrawerOpen] = useState(false);
   const [tradeDrawerOpen, setTradeDrawerOpen] = useState(false);
   const [receiveDrawerOpen, setReceiveDrawerOpen] = useState(false);
@@ -43,6 +40,10 @@ export function MobileSidebar() {
   const sendDrawerMounted = useRef(false);
   const tradeDrawerMounted = useRef(false);
   const receiveDrawerMounted = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (sendDrawerOpen) sendDrawerMounted.current = true;
   if (tradeDrawerOpen) tradeDrawerMounted.current = true;
@@ -52,52 +53,49 @@ export function MobileSidebar() {
     fastPolling: false,
   });
 
-  const tokenBalances =
-    balance?.tokens.map((t) => ({
-      mint: t.mint,
-      symbol: t.symbol,
-      uiAmount: t.amount.ui,
-    })) ?? [];
+  const tokenBalances = useMemo(
+    () =>
+      balance?.tokens.map((t) => ({
+        mint: t.mint,
+        symbol: t.symbol,
+        uiAmount: t.amount.ui,
+      })) ?? [],
+    [balance?.tokens],
+  );
 
-  const handleAction = (actionId: string) => {
+  const handleAction = useCallback((actionId: string) => {
     setIsOpen(false);
     if (actionId === "trade") {
       setTradeDrawerOpen(true);
     }
-  };
+  }, []);
 
-  const handleReceive = () => {
+  const handleReceive = useCallback(() => {
     setIsOpen(false);
     setReceiveDrawerOpen(true);
-  };
+  }, []);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     setIsOpen(false);
     setSendDrawerOpen(true);
-  };
+  }, []);
 
-  return (
+  const closeSidebar = useCallback(() => setIsOpen(false), []);
+  const closeReceiveDrawer = useCallback(() => setReceiveDrawerOpen(false), []);
+
+  const sidebarContent = (
     <>
-      {/* Hamburger button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="md:hidden p-2 -ml-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
-        aria-label="Open menu"
-      >
-        <Menu className="w-6 h-6" />
-      </button>
-
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 bg-black/50 z-[998] md:hidden"
+          onClick={closeSidebar}
         />
       )}
 
       {/* Drawer */}
       <div
-        className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-neutral-900 z-50 transform transition-transform duration-200 ease-out md:hidden flex flex-col ${
+        className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-neutral-900 z-[999] transform transition-transform duration-200 ease-out md:hidden flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -109,7 +107,7 @@ export function MobileSidebar() {
             <span className="text-vibrant-red">{"//"}</span> dashboard
           </h1>
           <button
-            onClick={() => setIsOpen(false)}
+            onClick={closeSidebar}
             className="p-1 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
             aria-label="Close menu"
           >
@@ -172,10 +170,26 @@ export function MobileSidebar() {
       {receiveDrawerMounted.current && address && (
         <ReceiveDrawer
           isOpen={receiveDrawerOpen}
-          onClose={() => setReceiveDrawerOpen(false)}
+          onClose={closeReceiveDrawer}
           walletAddress={address}
         />
       )}
+    </>
+  );
+
+  return (
+    <>
+      {/* Hamburger button */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="md:hidden p-2 -ml-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+        aria-label="Open menu"
+      >
+        <Menu className="w-6 h-6" />
+      </button>
+
+      {/* Portal to render sidebar at body level */}
+      {mounted && createPortal(sidebarContent, document.body)}
     </>
   );
 }

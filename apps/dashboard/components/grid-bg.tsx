@@ -20,8 +20,8 @@ export function GridBackground({
   return (
     <div
       className={cn(
-        "inset-0 text-neutral-900 dark:text-neutral-100",
-        contained ? "absolute z-0" : "fixed -z-20",
+        "text-neutral-900 dark:text-neutral-100 absolute inset-0",
+        !contained && "fixed -z-20",
         className,
       )}
     >

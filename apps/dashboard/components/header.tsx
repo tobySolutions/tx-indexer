@@ -1,12 +1,7 @@
 import Link from "next/link";
-import localFont from "next/font/local";
 import { ConnectWalletButton } from "./connect-wallet-button";
-import { MobileSidebar } from "./sidebar";
-
-const bitcountFont = localFont({
-  src: "../app/fonts/Bitcount.ttf",
-  variable: "--font-bitcount",
-});
+import { MobileSidebar } from "./sidebar/mobile-sidebar";
+import { bitcountFont } from "@/lib/fonts";
 
 interface HeaderProps {
   showMobileNav?: boolean;
@@ -30,7 +25,7 @@ export function Header({ showMobileNav = true }: HeaderProps) {
     <header
       className={
         showMobileNav
-          ? "md:rounded-tl-2xl bg-white dark:bg-neutral-950"
+          ? "md:rounded-tl-2xl relative z-10"
           : "bg-white dark:bg-neutral-900"
       }
     >

@@ -28,8 +28,8 @@ export function NoisyBackground({
   return (
     <div
       className={cn(
-        "inset-0 pointer-events-none overflow-hidden",
-        contained ? "absolute z-0" : "fixed -z-10",
+        "pointer-events-none overflow-hidden absolute inset-0",
+        !contained && "fixed -z-10",
       )}
     >
       <svg className="absolute inset-0 h-full w-full">

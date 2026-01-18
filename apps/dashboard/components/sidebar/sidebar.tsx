@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
-import localFont from "next/font/local";
 import { QrCode, Send } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
 import { mainNavItems, bottomNavItems } from "./nav-items";
 import { useUnifiedWallet } from "@/hooks/use-unified-wallet";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { bitcountFont } from "@/lib/fonts";
 
 const SendTransferDrawer = dynamic(
   () =>
@@ -25,11 +25,6 @@ const ReceiveDrawer = dynamic(
   () => import("@/components/receive-drawer").then((mod) => mod.ReceiveDrawer),
   { ssr: false },
 );
-
-const bitcountFont = localFont({
-  src: "../../app/fonts/Bitcount.ttf",
-  variable: "--font-bitcount",
-});
 
 export function Sidebar() {
   const { status, address } = useUnifiedWallet();
@@ -51,18 +46,25 @@ export function Sidebar() {
     fastPolling: false,
   });
 
-  const tokenBalances =
-    balance?.tokens.map((t) => ({
-      mint: t.mint,
-      symbol: t.symbol,
-      uiAmount: t.amount.ui,
-    })) ?? [];
+  const tokenBalances = useMemo(
+    () =>
+      balance?.tokens.map((t) => ({
+        mint: t.mint,
+        symbol: t.symbol,
+        uiAmount: t.amount.ui,
+      })) ?? [],
+    [balance?.tokens],
+  );
 
-  const handleAction = (actionId: string) => {
+  const handleAction = useCallback((actionId: string) => {
     if (actionId === "trade") {
       setTradeDrawerOpen(true);
     }
-  };
+  }, []);
+
+  const openReceiveDrawer = useCallback(() => setReceiveDrawerOpen(true), []);
+  const openSendDrawer = useCallback(() => setSendDrawerOpen(true), []);
+  const closeReceiveDrawer = useCallback(() => setReceiveDrawerOpen(false), []);
 
   return (
     <>
@@ -86,7 +88,7 @@ export function Sidebar() {
           <div className="px-3 pb-3 space-y-2">
             <button
               type="button"
-              onClick={() => setReceiveDrawerOpen(true)}
+              onClick={openReceiveDrawer}
               className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer w-full border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
             >
               <QrCode className="w-4 h-4" />
@@ -94,7 +96,7 @@ export function Sidebar() {
             </button>
             <button
               type="button"
-              onClick={() => setSendDrawerOpen(true)}
+              onClick={openSendDrawer}
               className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer w-full bg-vibrant-red text-white hover:bg-vibrant-red/90"
             >
               <Send className="w-4 h-4" />
@@ -131,7 +133,7 @@ export function Sidebar() {
       {receiveDrawerMounted.current && address && (
         <ReceiveDrawer
           isOpen={receiveDrawerOpen}
-          onClose={() => setReceiveDrawerOpen(false)}
+          onClose={closeReceiveDrawer}
           walletAddress={address}
         />
       )}

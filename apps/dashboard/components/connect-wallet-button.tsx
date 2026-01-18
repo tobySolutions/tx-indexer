@@ -760,21 +760,18 @@ function ConnectWalletButtonInner() {
                     <button
                       type="button"
                       role="menuitem"
-                      onClick={() => {
-                        setOpen(false);
-                        setShowQrModal(true);
-                      }}
-                      className="w-full px-3 py-2 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors flex justify-between items-center cursor-pointer text-neutral-500 dark:text-neutral-400"
+                      disabled
+                      className="w-full px-3 py-2 text-sm text-left flex justify-between items-center cursor-not-allowed text-neutral-400 dark:text-neutral-500"
                     >
                       <div className="flex items-center gap-2">
                         <QrCode className="h-4 w-4" aria-hidden="true" />
                         <span>scan with mobile</span>
                       </div>
                       <span
-                        className="text-neutral-400 dark:text-neutral-500"
-                        aria-hidden="true"
+                        className="text-xs font-medium bg-neutral-100 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 px-1.5 py-0.5 rounded"
+                        aria-label="Coming soon"
                       >
-                        →
+                        soon
                       </span>
                     </button>
                   </div>

@@ -75,7 +75,7 @@ export function AmountInput({
           placeholder="0.00"
           className={cn(
             "w-full pl-10 pr-16 py-4 rounded-lg border bg-white dark:bg-neutral-800 font-mono text-2xl text-neutral-900 dark:text-neutral-100 transition-colors",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
+            "focus:outline-none focus-visible:ring-1 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
             error
               ? "border-red-400 dark:border-red-700"
               : "border-neutral-200 dark:border-neutral-700",

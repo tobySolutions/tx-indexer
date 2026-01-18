@@ -32,7 +32,7 @@ export function LabelPrompt({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="e.g., alice, rent, savings"
-        className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-white text-sm mb-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red"
+        className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-white text-sm mb-3 focus:outline-none focus-visible:ring-1 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red"
       />
       <div className="flex gap-2">
         <button

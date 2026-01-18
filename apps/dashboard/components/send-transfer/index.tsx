@@ -376,7 +376,7 @@ export function SendTransferDrawer({
                   maxLength={256}
                   className={cn(
                     "w-full px-3 py-2.5 rounded-lg border bg-white dark:bg-neutral-800 text-sm text-neutral-900 dark:text-neutral-100 transition-colors resize-none",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
+                    "focus:outline-none focus-visible:ring-1 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
                     memoError
                       ? "border-red-300 dark:border-red-700"
                       : "border-neutral-200 dark:border-neutral-700",

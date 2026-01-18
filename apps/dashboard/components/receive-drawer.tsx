@@ -125,7 +125,7 @@ export function ReceiveDrawer({
                 placeholder="0.00"
                 min="0"
                 step="any"
-                className="flex-1 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 font-mono text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red"
+                className="flex-1 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 font-mono text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red"
               />
               <span className="text-sm text-neutral-500 dark:text-neutral-400">
                 USDC

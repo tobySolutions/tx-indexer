@@ -84,12 +84,16 @@ function ConnectWalletButtonInner() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [connectionMode, setConnectionMode] =
     useState<ConnectionMode>("desktop");
+  const [dropdownPosition, setDropdownPosition] = useState<"below" | "above">(
+    "below",
+  );
 
   const [mobileSession, setMobileSession] = useState<{
     publicKey: string;
   } | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const pendingSignInRef = useRef(false);
   const processedCallbackRef = useRef(false);
 
@@ -509,8 +513,19 @@ function ConnectWalletButtonInner() {
     <>
       <div className="relative" ref={dropdownRef}>
         <button
+          ref={buttonRef}
           type="button"
-          onClick={() => setOpen((prev) => !prev)}
+          onClick={() => {
+            if (!open && buttonRef.current) {
+              const rect = buttonRef.current.getBoundingClientRect();
+              const spaceBelow = window.innerHeight - rect.bottom;
+              const dropdownHeight = 300; // Approximate max dropdown height
+              setDropdownPosition(
+                spaceBelow < dropdownHeight ? "above" : "below",
+              );
+            }
+            setOpen((prev) => !prev);
+          }}
           disabled={isConnecting || isWalletConnecting}
           aria-expanded={open}
           aria-haspopup="menu"
@@ -558,7 +573,12 @@ function ConnectWalletButtonInner() {
           <div
             role="menu"
             aria-orientation="vertical"
-            className="absolute right-0 z-10 mt-2 w-full min-w-[240px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg animate-dropdown-in"
+            className={cn(
+              "absolute right-0 z-50 w-full min-w-[240px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-lg animate-dropdown-in",
+              dropdownPosition === "above"
+                ? "bottom-full mb-2"
+                : "top-full mt-2",
+            )}
           >
             {isConnected ? (
               <div className="p-2 space-y-2">

@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.1
+
+### Patch Changes
+
+- Make client type more flexible for custom Solana clients:
+  - Replace `SolanaClient` with `IndexerClient` interface (only requires `rpc`)
+  - Export `IndexerClient` and `IndexerRpcApi` types for custom integrations
+  - Allows integration with `@solana/react-core` and other Solana clients
+
+  Example usage with custom client:
+
+  ```typescript
+  import { createIndexer, type IndexerClient } from "tx-indexer";
+
+  const indexer = createIndexer({
+    client: { rpc: myCustomRpc } as IndexerClient,
+  });
+  ```
+
 ## 1.3.0
 
 ### Minor Changes

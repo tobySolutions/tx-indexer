@@ -31,6 +31,7 @@ export {
   createIndexer,
   type TxIndexer,
   type TxIndexerOptions,
+  type IndexerClient,
   type GetTransactionsOptions,
   type GetTransactionOptions,
   type ClassifiedTransaction,
@@ -43,6 +44,9 @@ export {
   type GetSignaturesResult,
   type GetTransactionsBySignaturesOptions,
 } from "./client";
+
+// Re-export IndexerRpcApi for users who need to type their own clients
+export type { IndexerRpcApi } from "@tx-indexer/solana/rpc/client";
 
 // ============================================================================
 // Type Definitions

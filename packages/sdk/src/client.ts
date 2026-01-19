@@ -1,9 +1,9 @@
-import type { Address, Signature } from "@solana/kit";
+import type { Address, Signature, Rpc } from "@solana/kit";
 import {
   createSolanaClient,
   parseAddress,
   parseSignature,
-  type SolanaClient,
+  type IndexerRpcApi,
 } from "@tx-indexer/solana/rpc/client";
 import { fetchWalletBalance } from "@tx-indexer/solana/fetcher/balances";
 import {
@@ -263,13 +263,22 @@ interface TxIndexerBaseOptions {
   customTokens?: Record<string, TokenInfo>;
 }
 
+/**
+ * Minimal client interface required by the indexer.
+ * Any client that provides an RPC with the required methods can be used.
+ * This allows integration with custom Solana clients (e.g., from @solana/react-core).
+ */
+export interface IndexerClient {
+  rpc: Rpc<IndexerRpcApi>;
+}
+
 export type TxIndexerOptions =
   | (TxIndexerBaseOptions & {
       rpcUrl: string;
       wsUrl?: string;
     })
   | (TxIndexerBaseOptions & {
-      client: SolanaClient;
+      client: IndexerClient;
     });
 
 export interface GetTransactionsOptions {

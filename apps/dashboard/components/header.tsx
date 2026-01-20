@@ -25,7 +25,7 @@ export function Header({ showMobileNav = true }: HeaderProps) {
     <header
       className={
         showMobileNav
-          ? "md:rounded-tl-2xl relative z-10"
+          ? "md:rounded-tl-2xl relative z-20"
           : "bg-white dark:bg-neutral-900"
       }
     >

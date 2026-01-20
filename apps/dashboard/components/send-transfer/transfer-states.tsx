@@ -34,12 +34,12 @@ interface TransferringOverlayProps {
 
 export function TransferringOverlay({ status }: TransferringOverlayProps) {
   return (
-    <div className="absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center">
+    <div className="absolute inset-0 bg-white/90 dark:bg-neutral-900/90 z-10 flex flex-col items-center justify-center">
       <Loader2
         className="h-8 w-8 animate-spin text-vibrant-red mb-4"
         aria-hidden="true"
       />
-      <p className="text-sm font-medium text-neutral-700">
+      <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
         {getStatusMessage(status)}
       </p>
     </div>
@@ -65,13 +65,16 @@ export function TransferSuccess({
 }: TransferSuccessProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
-      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-        <CheckCircle2 className="h-8 w-8 text-green-600" aria-hidden="true" />
+      <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+        <CheckCircle2
+          className="h-8 w-8 text-green-600 dark:text-green-400"
+          aria-hidden="true"
+        />
       </div>
-      <h3 className="text-lg font-medium text-neutral-900 mb-2">
+      <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-2">
         Transfer complete!
       </h3>
-      <p className="text-sm text-neutral-500 text-center mb-4">
+      <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center mb-4">
         {formatUsd(amount)} USDC sent to{" "}
         {recipientLabel || truncate(recipientAddress)}
       </p>
@@ -104,20 +107,23 @@ interface TransferErrorProps {
 export function TransferError({ error, onClose, onRetry }: TransferErrorProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
-      <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-        <XCircle className="h-8 w-8 text-red-600" aria-hidden="true" />
+      <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+        <XCircle
+          className="h-8 w-8 text-red-600 dark:text-red-400"
+          aria-hidden="true"
+        />
       </div>
-      <h3 className="text-lg font-medium text-neutral-900 mb-2">
+      <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-2">
         Transfer failed
       </h3>
-      <p className="text-sm text-neutral-500 text-center mb-6">
+      <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center mb-6">
         {error || "Something went wrong. Please try again."}
       </p>
       <div className="flex gap-3">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2.5 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+          className="px-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
         >
           Cancel
         </button>

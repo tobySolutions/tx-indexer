@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.2
+
+### Patch Changes
+
+- Accept string or Signature for before/until pagination options:
+  - `GetTransactionsOptions.before/until` now accept `SignatureInput` (string | Signature)
+  - `GetSignaturesOptions.before/until` now accept `SignatureInput` (string | Signature)
+  - Users no longer need `parseSignature()` or type assertions for pagination
+
+  ```typescript
+  // Before
+  getTransactions(wallet, { before: parseSignature("abc123...") });
+
+  // After (both work)
+  getTransactions(wallet, { before: "abc123..." });
+  getTransactions(wallet, { before: parseSignature("abc123...") });
+  ```
+
 ## 1.3.1
 
 ### Patch Changes

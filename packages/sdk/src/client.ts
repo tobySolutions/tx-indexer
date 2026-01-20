@@ -60,6 +60,16 @@ function normalizeSignature(input: SignatureInput): Signature {
   return typeof input === "string" ? parseSignature(input) : input;
 }
 
+/**
+ * Normalizes an optional signature input.
+ * Returns undefined if input is undefined, otherwise normalizes to Signature.
+ */
+function normalizeOptionalSignature(
+  input: SignatureInput | undefined,
+): Signature | undefined {
+  return input === undefined ? undefined : normalizeSignature(input);
+}
+
 async function enrichTokenMetadata(
   tokenFetcher: TokenFetcher,
   classified: ClassifiedTransaction,
@@ -283,8 +293,10 @@ export type TxIndexerOptions =
 
 export interface GetTransactionsOptions {
   limit?: number;
-  before?: Signature;
-  until?: Signature;
+  /** Fetch transactions before this signature (pagination) */
+  before?: SignatureInput;
+  /** Fetch transactions until this signature (exclusive) */
+  until?: SignatureInput;
   filterSpam?: boolean;
   spamConfig?: SpamFilterConfig;
   enrichNftMetadata?: boolean;
@@ -351,9 +363,9 @@ export interface GetSignaturesOptions {
   /** Maximum number of signatures to return (default: 100) */
   limit?: number;
   /** Fetch signatures before this signature (pagination) */
-  before?: Signature;
+  before?: SignatureInput;
   /** Fetch signatures until this signature (exclusive) */
-  until?: Signature;
+  until?: SignatureInput;
   /**
    * Include signatures from token accounts (ATAs).
    * This catches incoming token transfers that don't appear on the wallet address.
@@ -633,8 +645,8 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
     ): Promise<ClassifiedTransaction[]> {
       const {
         limit = 10,
-        before,
-        until,
+        before: beforeInput,
+        until: untilInput,
         filterSpam = true,
         spamConfig,
         enrichNftMetadata = true,
@@ -650,6 +662,10 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
         minPageSize = 20,
         maxTokenAccounts = 5,
       } = options;
+
+      // Normalize optional signature inputs
+      const before = normalizeOptionalSignature(beforeInput);
+      const until = normalizeOptionalSignature(untilInput);
 
       const normalizedAddress = normalizeAddress(walletAddress);
       const walletAddressStr = normalizedAddress.toString();
@@ -976,12 +992,16 @@ export function createIndexer(options: TxIndexerOptions): TxIndexer {
     ): Promise<GetSignaturesResult> {
       const {
         limit = 100,
-        before,
-        until,
+        before: beforeInput,
+        until: untilInput,
         includeTokenAccounts = false,
         maxTokenAccounts = 5,
         retry,
       } = options;
+
+      // Normalize optional signature inputs
+      const before = normalizeOptionalSignature(beforeInput);
+      const until = normalizeOptionalSignature(untilInput);
 
       const normalizedAddress = normalizeAddress(walletAddress);
       const seenSignatures = new Set<string>();

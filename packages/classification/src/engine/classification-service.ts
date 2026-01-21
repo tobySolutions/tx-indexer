@@ -10,7 +10,6 @@ import { NftMintClassifier } from "../classifiers/nft-mint-classifier";
 import { StakeDepositClassifier } from "../classifiers/stake-deposit-classifier";
 import { StakeWithdrawClassifier } from "../classifiers/stake-withdraw-classifier";
 import { BridgeClassifier } from "../classifiers/bridge-classifier";
-// Privacy classifiers (Solana Privacy Hack 2026)
 import { PrivacyCashClassifier } from "../classifiers/privacy-cash-classifier";
 
 export class ClassificationService {
@@ -18,7 +17,7 @@ export class ClassificationService {
 
   constructor() {
     this.registerClassifier(new SolanaPayClassifier());
-    this.registerClassifier(new PrivacyCashClassifier()); // Privacy Hack 2026
+    this.registerClassifier(new PrivacyCashClassifier());
     this.registerClassifier(new BridgeClassifier());
     this.registerClassifier(new NftMintClassifier());
     this.registerClassifier(new StakeDepositClassifier());

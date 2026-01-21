@@ -330,11 +330,7 @@ const BRIDGE_PROTOCOL_IDS = new Set([
   "allbridge",
 ]);
 
-// Privacy protocol IDs - protocols that provide private/shielded transactions
-const PRIVACY_PROTOCOL_IDS = new Set([
-  "privacy-cash",
-  // TODO: Add more privacy protocols as needed (e.g., "silent-swap" if on-chain detectable)
-]);
+const PRIVACY_PROTOCOL_IDS = new Set(["privacy-cash"]);
 
 /**
  * Checks if a protocol is a DEX (decentralized exchange) that performs swaps.

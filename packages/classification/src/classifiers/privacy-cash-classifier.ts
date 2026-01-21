@@ -4,32 +4,11 @@
  * Detects and classifies Privacy Cash protocol transactions.
  * Privacy Cash uses ZK-proofs to enable private transfers on Solana.
  *
- * =============================================================================
- * HACKATHON: Solana Privacy Hack 2026
- * BOUNTY: Privacy Cash - $15,000 (Best Integration to Existing App: $6,000)
- * DOCS: https://github.com/Privacy-Cash/privacy-cash-sdk
- * =============================================================================
+ * Privacy comes from breaking the link between deposits and withdrawals.
+ * Transaction data IS visible on-chain (amount, recipient, token),
+ * but which deposit corresponds to which withdrawal remains private.
  *
- * PROTOCOL DETAILS:
- * - Program ID (Mainnet): 9fhQBbumKEFuXtMBDw8AaQyAjCorLGJQiS3skWZdQyQD
- * - Program ID (Devnet): ATZj4jZ4FFzkvAcvk27DW9GRkgSbFnHo49fKKPQXU7VS
- *
- * INSTRUCTION DISCRIMINATORS (first 8 bytes):
- * - transact (SOL): d99582f8dd34fc77
- * - transact_spl (SPL tokens): 9a42f4cc4ee1a397
- *
- * TRANSACTION TYPE DETECTION:
- * - Deposit (shield): ext_amount > 0 (funds entering privacy pool)
- * - Withdraw (unshield): ext_amount < 0 (funds leaving privacy pool)
- *
- * SUPPORTED TOKENS:
- * - SOL (native)
- * - USDC: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
- * - USDT: Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB
- *
- * =============================================================================
- * IMPLEMENTATION TODOS:
- * =============================================================================
+ * @see https://github.com/Privacy-Cash/privacy-cash-sdk
  */
 
 import type {
@@ -37,132 +16,142 @@ import type {
   ClassifierContext,
 } from "../engine/classifier.interface";
 import type { TransactionClassification } from "@tx-indexer/core/tx/classification.types";
+import type { TxLeg } from "@tx-indexer/core/tx/tx.types";
 import { isPrivacyCashProtocolById } from "../protocols/detector";
+
+/**
+ * Known Privacy Cash supported token mints for metadata enrichment
+ */
+const PRIVACY_CASH_SUPPORTED_MINTS: Record<string, string> = {
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: "USDC",
+  Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: "USDT",
+  oreoU2P8bN6jkk3jbaiVxYnG1dCXcYxwhwyK9jSybcp: "ORE",
+  A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS: "ZEC",
+  sTorERYB6xAZ1SSbwpK3zoK2EEwbBrc7TZAzg1uCGiH: "stORE",
+};
+
+function getTokenType(leg: TxLeg): "SOL" | "SPL" {
+  const symbol = leg.amount.token.symbol;
+  // SOL has no mint address or uses the native mint
+  if (symbol === "SOL" || !leg.amount.token.mint) {
+    return "SOL";
+  }
+  return "SPL";
+}
+
+function getLargestLeg(legs: TxLeg[]): TxLeg | null {
+  if (legs.length === 0) return null;
+
+  return legs.reduce((largest, current) =>
+    current.amount.amountUi > largest.amount.amountUi ? current : largest,
+  );
+}
 
 export class PrivacyCashClassifier implements Classifier {
   name = "privacy-cash";
-  // Priority: Higher than transfers (20), lower than bridges (88)
-  // Privacy transactions should be detected before falling back to generic transfer
-  priority = 85;
+  priority = 86;
 
   classify(context: ClassifierContext): TransactionClassification | null {
     const { legs, tx } = context;
 
-    // ==========================================================================
-    // TODO 1: Check if this is a Privacy Cash transaction
-    // ==========================================================================
-    // Use the isPrivacyCashProtocolById helper to check tx.protocol?.id
-    // If not a Privacy Cash transaction, return null early
-    //
-    // Example:
-    // if (!isPrivacyCashProtocolById(tx.protocol?.id)) {
-    //   return null;
-    // }
-
-    const isPrivacyCash = isPrivacyCashProtocolById(tx.protocol?.id);
-    if (!isPrivacyCash) {
+    if (!isPrivacyCashProtocolById(tx.protocol?.id)) {
       return null;
     }
 
-    // ==========================================================================
-    // TODO 2: Parse instruction data to determine transaction type
-    // ==========================================================================
-    // The instruction discriminator tells us if it's SOL or SPL token operation
-    // - d99582f8dd34fc77 = transact (SOL)
-    // - 9a42f4cc4ee1a397 = transact_spl (SPL tokens)
-    //
-    // You may need to access the raw instruction data from tx
-    // For now, we'll use leg analysis as a fallback
-
-    // ==========================================================================
-    // TODO 3: Determine if deposit or withdraw based on fund flow
-    // ==========================================================================
-    // Analyze legs to determine direction:
-    // - Deposit (shield): User sends funds TO the protocol (debit from external)
-    // - Withdraw (unshield): User receives funds FROM the protocol (credit to external)
-    //
-    // Look for legs with:
-    // - accountId starting with "external:" (user accounts)
-    // - side: "debit" for deposits, "credit" for withdrawals
-    // - role: "sent" or "protocol_deposit" for deposits
-    // - role: "received" or "protocol_withdraw" for withdrawals
-
-    const deposits = legs.filter(
+    const userDebits = legs.filter(
       (leg) =>
         leg.accountId.startsWith("external:") &&
         leg.side === "debit" &&
         leg.role !== "fee",
     );
 
-    const withdrawals = legs.filter(
+    const userCredits = legs.filter(
       (leg) =>
         leg.accountId.startsWith("external:") &&
         leg.side === "credit" &&
         leg.role !== "fee",
     );
 
-    // ==========================================================================
-    // TODO 4: Classify the transaction type
-    // ==========================================================================
-    // Based on the analysis above, determine:
-    // - "privacy_deposit" if funds are being shielded
-    // - "privacy_withdraw" if funds are being unshielded
-    //
-    // Note: Internal shielded transfers (user to user within the pool) may not
-    // be detectable on-chain since they use ZK-proofs
-
     let primaryType: "privacy_deposit" | "privacy_withdraw";
-    let primaryAmount = null;
+    let primaryLeg: TxLeg | null = null;
     let participant: string | null = null;
 
-    if (deposits.length > 0 && withdrawals.length === 0) {
-      // Funds going INTO the privacy pool = deposit/shield
+    if (userDebits.length > 0 && userCredits.length === 0) {
       primaryType = "privacy_deposit";
-      const depositLeg = deposits[0]!;
-      primaryAmount = depositLeg.amount;
-      participant = depositLeg.accountId.replace("external:", "");
-    } else if (withdrawals.length > 0 && deposits.length === 0) {
-      // Funds coming OUT of the privacy pool = withdraw/unshield
+      primaryLeg = getLargestLeg(userDebits);
+      if (primaryLeg) {
+        participant = primaryLeg.accountId.replace("external:", "");
+      }
+    } else if (userCredits.length > 0 && userDebits.length === 0) {
       primaryType = "privacy_withdraw";
-      const withdrawLeg = withdrawals[0]!;
-      primaryAmount = withdrawLeg.amount;
-      participant = withdrawLeg.accountId.replace("external:", "");
-    } else if (deposits.length > 0 && withdrawals.length > 0) {
-      // Both deposit and withdrawal - likely a withdraw to different address
-      // Treat as withdraw since funds are leaving to external
-      primaryType = "privacy_withdraw";
-      const withdrawLeg = withdrawals[0]!;
-      primaryAmount = withdrawLeg.amount;
-      participant = withdrawLeg.accountId.replace("external:", "");
+      primaryLeg = getLargestLeg(userCredits);
+      if (primaryLeg) {
+        participant = primaryLeg.accountId.replace("external:", "");
+      }
+    } else if (userCredits.length > 0 && userDebits.length > 0) {
+      const largestDebit = getLargestLeg(userDebits);
+      const largestCredit = getLargestLeg(userCredits);
+
+      if (
+        largestCredit &&
+        largestDebit &&
+        largestCredit.amount.amountUi > largestDebit.amount.amountUi
+      ) {
+        primaryType = "privacy_withdraw";
+        primaryLeg = largestCredit;
+      } else if (largestDebit) {
+        primaryType = "privacy_deposit";
+        primaryLeg = largestDebit;
+      } else {
+        return null;
+      }
+
+      if (primaryLeg) {
+        participant = primaryLeg.accountId.replace("external:", "");
+      }
     } else {
-      // No clear fund movement detected - might be internal or admin tx
       return null;
     }
 
-    // ==========================================================================
-    // TODO 5: Extract additional metadata
-    // ==========================================================================
-    // Consider extracting:
-    // - Token type (SOL vs SPL)
-    // - Token mint address for SPL tokens
-    // - Commitment hash (if accessible)
-    // - Fee information
+    if (!primaryLeg) {
+      return null;
+    }
+
+    const tokenType = getTokenType(primaryLeg);
+    const tokenMint = primaryLeg.amount.token.mint;
+    const tokenSymbol = primaryLeg.amount.token.symbol;
+
+    const isKnownToken =
+      tokenType === "SOL" ||
+      (tokenMint !== undefined && tokenMint in PRIVACY_CASH_SUPPORTED_MINTS);
+
+    const feeLeg = legs.find(
+      (leg) => leg.role === "fee" && leg.side === "debit",
+    );
+    const feeAmount = feeLeg?.amount.amountUi;
 
     return {
       primaryType,
-      primaryAmount,
+      primaryAmount: primaryLeg.amount,
       secondaryAmount: null,
       sender: primaryType === "privacy_deposit" ? participant : null,
       receiver: primaryType === "privacy_withdraw" ? participant : null,
-      counterparty: null,
-      confidence: 0.9,
+      counterparty: {
+        type: "protocol",
+        address: tx.protocol?.id ?? "privacy-cash",
+        name: "Privacy Cash",
+      },
+      confidence: isKnownToken ? 0.95 : 0.85,
       isRelevant: true,
       metadata: {
         privacy_protocol: "privacy-cash",
         privacy_operation:
           primaryType === "privacy_deposit" ? "shield" : "unshield",
-        // TODO: Add token_type: "SOL" | "SPL"
-        // TODO: Add token_mint for SPL tokens
+        token_type: tokenType,
+        token_symbol: tokenSymbol,
+        ...(tokenMint && { token_mint: tokenMint }),
+        ...(feeAmount !== undefined && { fee_amount: feeAmount }),
+        is_supported_token: isKnownToken,
       },
     };
   }

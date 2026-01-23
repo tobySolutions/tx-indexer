@@ -344,6 +344,10 @@ export function SendTransferDrawer({
                 showAutocomplete={showAutocomplete}
                 onShowAutocomplete={setShowAutocomplete}
                 onSelectLabel={handleSelectLabel}
+                onClear={() => {
+                  setRecipientAddress("");
+                  setCurrentLabel(null);
+                }}
                 needsReauth={needsReauth}
                 showSignInPrompt={showSignInForLabels}
                 onShowSignInPrompt={() => setShowSignInForLabels(true)}

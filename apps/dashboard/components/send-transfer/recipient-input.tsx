@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { cn, truncate } from "@/lib/utils";
-import { Tag, AlertCircle, LogIn } from "lucide-react";
+import { Tag, AlertCircle, LogIn, X } from "lucide-react";
 import type { WalletLabel } from "@/app/actions/wallet-labels";
 
 interface RecipientInputProps {
@@ -15,6 +15,7 @@ interface RecipientInputProps {
   showAutocomplete: boolean;
   onShowAutocomplete: (show: boolean) => void;
   onSelectLabel: (label: WalletLabel) => void;
+  onClear: () => void;
   needsReauth: boolean;
   showSignInPrompt: boolean;
   onShowSignInPrompt: () => void;
@@ -30,6 +31,7 @@ export function RecipientInput({
   showAutocomplete,
   onShowAutocomplete,
   onSelectLabel,
+  onClear,
   needsReauth,
   showSignInPrompt,
   onShowSignInPrompt,
@@ -62,39 +64,61 @@ export function RecipientInput({
         to
       </label>
       <div className="relative">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            if (e.target.value && savedLabels.length > 0) {
-              onShowAutocomplete(true);
-            }
-          }}
-          onFocus={() => {
-            if (value && savedLabels.length > 0) {
-              onShowAutocomplete(true);
-            }
-          }}
-          onBlur={onBlur}
-          placeholder={
-            savedLabels.length > 0
-              ? "Enter address or search saved contacts"
-              : "Enter recipient address"
-          }
-          className={cn(
-            "w-full px-3 py-2.5 rounded-lg border bg-white dark:bg-neutral-800 font-mono text-sm text-neutral-900 dark:text-neutral-100 transition-colors",
-            "focus:outline-none focus-visible:ring-1 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
-            error
-              ? "border-red-400 dark:border-red-700"
-              : "border-neutral-200 dark:border-neutral-700",
-          )}
-        />
-        {currentLabel && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded text-xs">
-            <Tag className="h-3 w-3" />
-            {currentLabel}
+        {currentLabel ? (
+          // Show labeled wallet pill when a contact is selected
+          <div
+            className={cn(
+              "w-full px-3 py-2.5 pr-10 rounded-lg border bg-white dark:bg-neutral-800 text-sm transition-colors",
+              "border-neutral-200 dark:border-neutral-700",
+              "flex items-center gap-2",
+            )}
+          >
+            <Tag className="h-4 w-4 text-vibrant-red" />
+            <span className="text-neutral-900 dark:text-neutral-100 font-medium">
+              {currentLabel}
+            </span>
+            <span className="text-neutral-400 text-xs font-mono">
+              ({truncate(value)})
+            </span>
           </div>
+        ) : (
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              if (e.target.value && savedLabels.length > 0) {
+                onShowAutocomplete(true);
+              }
+            }}
+            onFocus={() => {
+              if (savedLabels.length > 0) {
+                onShowAutocomplete(true);
+              }
+            }}
+            onBlur={onBlur}
+            placeholder={
+              savedLabels.length > 0
+                ? "Enter address or search saved contacts"
+                : "Enter recipient address"
+            }
+            className={cn(
+              "w-full px-3 py-2.5 pr-10 rounded-lg border bg-white dark:bg-neutral-800 font-mono text-sm text-neutral-900 dark:text-neutral-100 transition-colors",
+              "focus:outline-none focus-visible:ring-1 focus-visible:ring-vibrant-red focus-visible:border-vibrant-red",
+              error
+                ? "border-red-400 dark:border-red-700"
+                : "border-neutral-200 dark:border-neutral-700",
+            )}
+          />
+        )}
+        {value && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+          >
+            <X className="h-4 w-4 text-neutral-400" />
+          </button>
         )}
       </div>
 

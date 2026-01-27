@@ -86,6 +86,28 @@ create policy "Users can manage own labels"
   using (auth.uid() = user_id);
 ```
 
+---
+
+## Next Steps
+
+### Privacy Hub Edge Cases
+
+- **Stuck swap funds** - If swap fails after deposit but before withdraw, funds are stuck in ephemeral wallet. Need recovery mechanism
+- **Transaction simulation** - Add `simulateTransaction` before sending to catch errors early and provide better UX
+- **Retry parity** - Deposit has 3 retries, withdraw has none
+- **Rate limiting** - Debounce quote fetching
+- **Session storage security** - Signature caching uses sessionStorage, should we use Redis for this (?)
+- **Classifier edge cases** - Handle malformed transaction legs gracefully
+
+### Upcoming Features
+
+- **Assets** - Portfolio view with token balances, NFTs, and DeFi positions
+- **Earn** - Yield opportunities - staking, lending, liquidity provision
+- **Predictions** - On-chain prediction markets integration
+- **Multi-wallet** - Manage multiple wallets from a single dashboard
+
+---
+
 ## License
 
 MIT

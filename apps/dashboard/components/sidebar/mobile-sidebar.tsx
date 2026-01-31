@@ -64,6 +64,14 @@ export function MobileSidebar() {
   if (receiveDrawerOpen) receiveDrawerMounted.current = true;
   if (privacyDrawerOpen) privacyDrawerMounted.current = true;
 
+  useEffect(() => {
+    function handlePrivacyOpen() {
+      setPrivacyDrawerOpen(true);
+    }
+    window.addEventListener("privacy:open", handlePrivacyOpen);
+    return () => window.removeEventListener("privacy:open", handlePrivacyOpen);
+  }, []);
+
   const { balance, usdcBalance } = useDashboardData(address, {
     fastPolling: false,
   });
@@ -107,13 +115,13 @@ export function MobileSidebar() {
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[998] md:hidden"
+          className="fixed inset-0 bg-black/50 z-998 md:hidden"
           onClick={closeSidebar}
         />
       )}
 
       <div
-        className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-neutral-900 z-[999] transform transition-transform duration-200 ease-out md:hidden flex flex-col ${
+        className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-neutral-900 z-999 transform transition-transform duration-200 ease-out md:hidden flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

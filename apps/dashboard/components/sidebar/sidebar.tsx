@@ -153,6 +153,14 @@ export function Sidebar() {
   const openPrivacyDrawer = useCallback(() => setPrivacyDrawerOpen(true), []);
   const closeReceiveDrawer = useCallback(() => setReceiveDrawerOpen(false), []);
 
+  useEffect(() => {
+    function handlePrivacyOpen() {
+      setPrivacyDrawerOpen(true);
+    }
+    window.addEventListener("privacy:open", handlePrivacyOpen);
+    return () => window.removeEventListener("privacy:open", handlePrivacyOpen);
+  }, []);
+
   return (
     <>
       <aside className="hidden md:flex flex-col w-56 fixed top-0 left-0 h-screen overflow-y-auto z-30">

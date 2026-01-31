@@ -2,6 +2,7 @@ import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { NoisyBackground } from "@/components/noisy-bg";
 import { GridBackground } from "@/components/grid-bg";
+import { PrivacyDebugProvider } from "@/components/dev/privacy-debug-provider";
 
 export default function DashboardLayout({
   children,
@@ -21,8 +22,10 @@ export default function DashboardLayout({
           </div>
           {/* Content container */}
           <div className="relative md:rounded-l-2xl md:border-t md:border-l md:border-b md:border-neutral-200 md:dark:border-neutral-800 min-h-screen md:min-h-[calc(100vh-2rem)]">
-            <Header />
-            <main className="relative z-10">{children}</main>
+            <PrivacyDebugProvider>
+              <Header />
+              <main className="relative z-10">{children}</main>
+            </PrivacyDebugProvider>
           </div>
         </div>
       </div>

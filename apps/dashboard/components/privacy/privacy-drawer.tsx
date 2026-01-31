@@ -8,13 +8,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
-import {
-  Shield,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  ArrowLeftRight,
-} from "lucide-react";
+import { Shield } from "lucide-react";
 import { usePrivacyCash } from "@/hooks/use-privacy-cash";
 import { usePrivateSwap } from "@/hooks/use-private-swap";
 import { useUnifiedWallet } from "@/hooks/use-unified-wallet";
@@ -32,19 +26,16 @@ import {
   SwapSuccessState,
   SwapErrorState,
   HubTabs,
-  ModeTabs,
-  AssetSelector,
-  BalanceDisplay,
-  AmountInput,
-  RecipientSelector,
-  InfoBox,
-  SwapContent,
   SwapProgress,
+  RecoveryBanner,
+  TransferTab,
+  SwapTab,
   type HubTab,
   type OperationMode,
   type SwapStep,
   type PrivacyDrawerProps,
 } from "./drawer";
+import { usePrivacyDebug } from "@/components/dev/privacy-debug-provider";
 
 export function PrivacyDrawer({
   open,
@@ -79,6 +70,7 @@ export function PrivacyDrawer({
   const [amount, setAmount] = useState("");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [selectedToken, setSelectedToken] = useState<PrivacyCashToken>("USDC");
+  const [isTopUpFlow, setIsTopUpFlow] = useState(false);
   const [walletBalanceAdjustment, setWalletBalanceAdjustment] = useState(0);
   const [privateBalanceAdjustment, setPrivateBalanceAdjustment] = useState(0);
   const prevRawWalletBalanceRef = useRef<number | null>(null);
@@ -102,16 +94,29 @@ export function PrivacyDrawer({
 
   // Use the real private swap hook
   const {
-    state: swapState,
+    state: swapStateRaw,
     isSwapping: isPrivateSwapping,
     estimatedOutput: swapEstimatedOutput,
     isLoadingQuote,
     isBelowMinimum,
     minimumAmount,
+    recoverySession,
+    isLoadingRecovery,
+    isRecovering,
+    recoveryError,
+    recoveryStatus,
     executeSwap,
+    loadRecoverySession,
+    recoverFunds,
+    clearRecoverySession,
     getQuote,
     reset: resetSwap,
   } = usePrivateSwap();
+  const {
+    enabled: debugEnabled,
+    state: debugState,
+    update: updateDebugState,
+  } = usePrivacyDebug();
 
   // Store values at submission time for use in success effect
   const submittedValuesRef = useRef<{
@@ -126,10 +131,61 @@ export function PrivacyDrawer({
 
   const isConnected = walletStatus === "connected";
   const amountNum = parseFloat(amount) || 0;
-  const showTransferResultState = status === "success" || status === "error";
+  const effectiveTab =
+    debugEnabled && (debugState.swapStep || debugState.showRecovery)
+      ? "swap"
+      : activeTab;
+  const showTransferResultState =
+    effectiveTab === "transfer" && (status === "success" || status === "error");
+  const swapState = debugState.swapStep
+    ? {
+        ...swapStateRaw,
+        step: debugState.swapStep,
+        errorCode: debugState.swapErrorCode ?? swapStateRaw.errorCode,
+        error: debugState.swapErrorMessage || swapStateRaw.error,
+      }
+    : swapStateRaw;
+  const effectiveIsSwapping = debugState.swapStep
+    ? !["idle", "success", "error"].includes(debugState.swapStep)
+    : isPrivateSwapping;
+  const debugRecoverySession = debugState.showRecovery
+    ? {
+        id: "debug",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        fromToken: "SOL" as PrivacyCashToken,
+        toToken: "USDC" as PrivacyCashToken,
+        amount: 1,
+        step: "error" as SwapStep,
+        withdrawSignature: null,
+        swapSignature: null,
+        depositSignature: null,
+        lastErrorCode: debugState.recoveryErrorCode,
+        lastErrorMessage: debugState.recoveryErrorMessage,
+        lastErrorAt: Date.now(),
+        ephemeralPublicKey:
+          debugState.recoveryAddress ||
+          "9FhY4n3fJ4m9eP8wEZsL3nq4T4zZkYx8B1tVJmTz4mQe",
+        ephemeralSecretKey: "",
+      }
+    : null;
+  const effectiveRecoverySession = debugRecoverySession ?? recoverySession;
+  const effectiveRecoveryStatus =
+    debugEnabled && debugState.showRecovery
+      ? debugState.recoveryStatus || recoveryStatus
+      : recoveryStatus;
+  const effectiveIsRecovering =
+    debugEnabled && debugState.showRecovery
+      ? debugState.isRecovering
+      : isRecovering;
   const showSwapResultState =
-    swapState.step === "success" || swapState.step === "error";
-  const isSwapping = isPrivateSwapping;
+    effectiveTab === "swap" &&
+    (swapState.step === "success" || swapState.step === "error");
+  const isSwapping = effectiveIsSwapping;
+  const needsTopUpInSwap = swapState.errorCode === "insufficient_sol";
+  const needsTopUpInRecovery =
+    effectiveRecoverySession?.lastErrorCode === "insufficient_sol";
+  const recoveryRecipient = effectiveRecoverySession?.ephemeralPublicKey ?? "";
 
   const tokenConfig = PRIVACY_CASH_SUPPORTED_TOKENS[selectedToken];
   const rawWalletBalance =
@@ -183,6 +239,13 @@ export function PrivacyDrawer({
       refreshBalance(selectedToken);
     }
   }, [open, isInitialized, refreshBalance, selectedToken]);
+
+  useEffect(() => {
+    if (!open || activeTab !== "swap" || !isInitialized) return;
+    const client = getClient();
+    if (!client) return;
+    loadRecoverySession(client);
+  }, [open, activeTab, isInitialized, getClient, loadRecoverySession]);
 
   // Fetch all private balances when in withdraw mode (for asset selector dropdown)
   useEffect(() => {
@@ -343,16 +406,21 @@ export function PrivacyDrawer({
   const handleTokenSelect = useCallback((token: PrivacyCashToken) => {
     setSelectedToken(token);
     setAmount("");
+    setIsTopUpFlow(false);
   }, []);
 
   const handleModeChange = useCallback((newMode: OperationMode) => {
     setMode(newMode);
     setAmount("");
+    setIsTopUpFlow(false);
   }, []);
 
   const handleTabChange = useCallback(
     (tab: HubTab) => {
       setActiveTab(tab);
+      if (tab !== "transfer") {
+        setIsTopUpFlow(false);
+      }
       if (tab === "swap") {
         // Swap only supports SOL -> SPL, ensure we show SOL balance
         setSelectedToken("SOL");
@@ -376,6 +444,46 @@ export function PrivacyDrawer({
     resetSwap();
   }, [resetSwap]);
 
+  const handleRecoverFunds = useCallback(async () => {
+    const client = getClient();
+    if (!client || isRecovering) return;
+    if (debugEnabled && debugState.showRecovery) return;
+    await recoverFunds(client);
+  }, [getClient, recoverFunds, isRecovering]);
+
+  const handleDismissRecovery = useCallback(async () => {
+    if (debugEnabled && debugState.showRecovery) {
+      updateDebugState({
+        showRecovery: false,
+        isRecovering: false,
+        recoveryStatus: "",
+        recoveryErrorCode: null,
+        recoveryErrorMessage: "",
+      });
+      return;
+    }
+    const client = getClient();
+    if (!client || isRecovering) return;
+    await clearRecoverySession(client);
+  }, [
+    clearRecoverySession,
+    debugEnabled,
+    debugState.showRecovery,
+    getClient,
+    isRecovering,
+    updateDebugState,
+  ]);
+
+  const handleTopUp = useCallback(() => {
+    if (!recoveryRecipient) return;
+    setActiveTab("transfer");
+    setMode("withdraw");
+    setSelectedToken("SOL");
+    setRecipientAddress(recoveryRecipient);
+    setAmount("0.01");
+    setIsTopUpFlow(true);
+  }, [recoveryRecipient]);
+
   const insufficientBalance =
     mode === "deposit"
       ? amountNum > walletBalance
@@ -395,6 +503,21 @@ export function PrivacyDrawer({
     !isBelowMinimum &&
     swapEstimatedOutput !== "";
 
+  const recoveryBanner = (
+    <RecoveryBanner
+      isLoading={isLoadingRecovery}
+      isSwapping={isSwapping}
+      isRecovering={effectiveIsRecovering}
+      needsTopUp={needsTopUpInRecovery}
+      recoverySession={effectiveRecoverySession}
+      recoveryError={recoveryError}
+      recoveryStatus={effectiveRecoveryStatus}
+      onRecover={handleRecoverFunds}
+      onDismiss={handleDismissRecovery}
+      onTopUp={handleTopUp}
+    />
+  );
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
@@ -413,17 +536,17 @@ export function PrivacyDrawer({
         </SheetHeader>
 
         {/* Transfer processing overlay */}
-        {activeTab === "transfer" && isProcessing && (
+        {effectiveTab === "transfer" && isProcessing && (
           <ProcessingOverlay status={status} mode={mode} />
         )}
 
         {/* Swap processing overlay */}
-        {activeTab === "swap" && isSwapping && (
+        {effectiveTab === "swap" && isSwapping && (
           <SwapProgress currentStep={swapState.step} />
         )}
 
         {/* Transfer success state */}
-        {activeTab === "transfer" && status === "success" && signature && (
+        {effectiveTab === "transfer" && status === "success" && signature && (
           <SuccessState
             mode={mode}
             amount={amountNum}
@@ -436,12 +559,12 @@ export function PrivacyDrawer({
         )}
 
         {/* Transfer error state */}
-        {activeTab === "transfer" && status === "error" && (
+        {effectiveTab === "transfer" && status === "error" && (
           <ErrorState error={error} onClose={handleClose} onRetry={reset} />
         )}
 
         {/* Swap success state */}
-        {activeTab === "swap" && swapState.step === "success" && (
+        {effectiveTab === "swap" && swapState.step === "success" && (
           <SwapSuccessState
             fromAmount={swapState.inputAmount}
             fromToken={swapFromToken}
@@ -452,11 +575,18 @@ export function PrivacyDrawer({
         )}
 
         {/* Swap error state */}
-        {activeTab === "swap" && swapState.step === "error" && (
+        {effectiveTab === "swap" && swapState.step === "error" && (
           <SwapErrorState
             error={swapState.error}
             onClose={handleClose}
             onRetry={handleSwapReset}
+            onTopUp={needsTopUpInSwap ? handleTopUp : undefined}
+            topUpLabel="Add SOL"
+            description={
+              swapState.errorCode === "insufficient_sol"
+                ? "We need a tiny amount of SOL to finish this swap. Add SOL and try again."
+                : "Your funds are safe and can be recovered from the swap tab."
+            }
           />
         )}
 
@@ -465,135 +595,59 @@ export function PrivacyDrawer({
           <div className="flex flex-col flex-1 mt-6">
             <div className="space-y-4 flex-1">
               {/* Hub tabs */}
-              <HubTabs activeTab={activeTab} onTabChange={handleTabChange} />
+              <HubTabs activeTab={effectiveTab} onTabChange={handleTabChange} />
 
               {/* Transfer tab content */}
-              {activeTab === "transfer" && (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <ModeTabs mode={mode} onModeChange={handleModeChange} />
-
-                  <AssetSelector
-                    selectedToken={selectedToken}
-                    walletBalance={walletBalance}
-                    privateBalance={privateBalanceAmount}
-                    mode={mode}
-                    dashboardBalance={dashboardBalance}
-                    privateBalances={privateBalances}
-                    isLoadingPrivateBalances={isLoadingAllPrivateBalances}
-                    onTokenSelect={handleTokenSelect}
-                  />
-
-                  <BalanceDisplay
-                    walletBalance={walletBalance}
-                    privateBalance={privateBalanceAmount}
-                    selectedToken={selectedToken}
-                    isLoadingBalance={isLoadingBalance}
-                  />
-
-                  <AmountInput
-                    amount={amount}
-                    selectedToken={selectedToken}
-                    insufficientBalance={insufficientBalance}
-                    mode={mode}
-                    onAmountChange={setAmount}
-                    onSetMax={handleSetMax}
-                  />
-
-                  {mode === "withdraw" && (
-                    <RecipientSelector
-                      recipientAddress={recipientAddress}
-                      walletAddress={walletAddress}
-                      labelsList={labelsList}
-                      onRecipientChange={setRecipientAddress}
-                    />
-                  )}
-
-                  <InfoBox mode={mode} />
-
-                  <div className="flex gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="flex-1 px-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-                    >
-                      cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={
-                        !isConnected || isProcessing || !isTransferFormValid
-                      }
-                      className={cn(
-                        "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2",
-                        isConnected && !isProcessing && isTransferFormValid
-                          ? "bg-purple-500 text-white hover:bg-purple-500/90 cursor-pointer"
-                          : "bg-neutral-200 dark:bg-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed",
-                      )}
-                    >
-                      {mode === "deposit" ? (
-                        <>
-                          <ArrowDownToLine
-                            className="h-4 w-4"
-                            aria-hidden="true"
-                          />
-                          Deposit
-                        </>
-                      ) : (
-                        <>
-                          <ArrowUpFromLine
-                            className="h-4 w-4"
-                            aria-hidden="true"
-                          />
-                          Withdraw
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
+              {effectiveTab === "transfer" && (
+                <TransferTab
+                  mode={mode}
+                  selectedToken={selectedToken}
+                  walletBalance={walletBalance}
+                  privateBalance={privateBalanceAmount}
+                  dashboardBalance={dashboardBalance}
+                  privateBalances={privateBalances}
+                  isLoadingPrivateBalances={isLoadingAllPrivateBalances}
+                  isLoadingBalance={isLoadingBalance}
+                  amount={amount}
+                  insufficientBalance={insufficientBalance}
+                  recipientAddress={recipientAddress}
+                  walletAddress={walletAddress}
+                  labelsList={labelsList}
+                  isTopUpFlow={isTopUpFlow}
+                  isConnected={isConnected}
+                  isProcessing={isProcessing}
+                  isTransferFormValid={isTransferFormValid}
+                  onModeChange={handleModeChange}
+                  onTokenSelect={handleTokenSelect}
+                  onAmountChange={setAmount}
+                  onSetMax={handleSetMax}
+                  onRecipientChange={setRecipientAddress}
+                  onClose={handleClose}
+                  onSubmit={handleSubmit}
+                />
               )}
 
               {/* Swap tab content */}
-              {activeTab === "swap" && (
-                <div className="space-y-4">
-                  <SwapContent
-                    fromToken={swapFromToken}
-                    toToken={swapToToken}
-                    amount={swapAmount}
-                    estimatedOutput={swapEstimatedOutput}
-                    privateBalances={privateBalances}
-                    isLoadingQuote={isLoadingQuote}
-                    isBelowMinimum={isBelowMinimum}
-                    minimumAmount={minimumAmount}
-                    onFromTokenChange={setSwapFromToken}
-                    onToTokenChange={setSwapToToken}
-                    onAmountChange={setSwapAmount}
-                    onSwapDirection={handleSwapDirection}
-                  />
-
-                  <div className="flex gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                    <button
-                      type="button"
-                      onClick={handleClose}
-                      className="flex-1 px-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-                    >
-                      cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSwapSubmit}
-                      disabled={!isConnected || !isSwapFormValid}
-                      className={cn(
-                        "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2",
-                        isConnected && isSwapFormValid
-                          ? "bg-purple-500 text-white hover:bg-purple-500/90 cursor-pointer"
-                          : "bg-neutral-200 dark:bg-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed",
-                      )}
-                    >
-                      <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
-                      Swap
-                    </button>
-                  </div>
-                </div>
+              {effectiveTab === "swap" && (
+                <SwapTab
+                  swapFromToken={swapFromToken}
+                  swapToToken={swapToToken}
+                  swapAmount={swapAmount}
+                  swapEstimatedOutput={swapEstimatedOutput}
+                  privateBalances={privateBalances}
+                  isLoadingQuote={isLoadingQuote}
+                  isBelowMinimum={isBelowMinimum}
+                  minimumAmount={minimumAmount}
+                  isConnected={isConnected}
+                  isSwapFormValid={isSwapFormValid}
+                  onFromTokenChange={setSwapFromToken}
+                  onToTokenChange={setSwapToToken}
+                  onAmountChange={setSwapAmount}
+                  onSwapDirection={handleSwapDirection}
+                  onSwapSubmit={handleSwapSubmit}
+                  onClose={handleClose}
+                  recoveryBanner={recoveryBanner}
+                />
               )}
             </div>
           </div>

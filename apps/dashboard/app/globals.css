@@ -368,6 +368,8 @@
 
   html {
     background: var(--background);
+    /* Prevent layout shift when modals/drawers open by reserving scrollbar space */
+    scrollbar-gutter: stable;
   }
 
   body {

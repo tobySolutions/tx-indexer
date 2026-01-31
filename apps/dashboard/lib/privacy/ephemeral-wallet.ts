@@ -7,9 +7,27 @@ import {
   VersionedTransaction,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
+import bs58 from "bs58";
 
 export function createEphemeralKeypair(): Keypair {
   return Keypair.generate();
+}
+
+export function serializeKeypair(keypair: Keypair): {
+  publicKey: string;
+  secretKey: string;
+} {
+  return {
+    publicKey: bs58.encode(keypair.publicKey.toBytes()),
+    secretKey: bs58.encode(keypair.secretKey),
+  };
+}
+
+export function deserializeKeypair(payload: {
+  publicKey: string;
+  secretKey: string;
+}): Keypair {
+  return Keypair.fromSecretKey(bs58.decode(payload.secretKey));
 }
 
 export function signTransactionWithKeypair(

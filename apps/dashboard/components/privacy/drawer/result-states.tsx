@@ -107,12 +107,18 @@ interface SwapErrorStateProps {
   error: string | null;
   onClose: () => void;
   onRetry: () => void;
+  onTopUp?: () => void;
+  topUpLabel?: string;
+  description?: string;
 }
 
 export function SwapErrorState({
   error,
   onClose,
   onRetry,
+  onTopUp,
+  topUpLabel = "Add SOL",
+  description,
 }: SwapErrorStateProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -126,28 +132,40 @@ export function SwapErrorState({
         Something went wrong
       </h3>
       <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center mb-2">
-        Don&apos;t worry — your funds are safe in your private balance.
+        {description ??
+          "Don't worry — your funds are safe in your private balance."}
       </p>
       {error && (
         <p className="text-xs text-neutral-400 dark:text-neutral-500 text-center mb-6">
           {error}
         </p>
       )}
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="px-4 py-2.5 rounded-lg bg-purple-500 text-white text-sm font-medium hover:bg-purple-500/90 transition-colors cursor-pointer"
-        >
-          Try again
-        </button>
+      <div className="space-y-3 w-full">
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-purple-500 text-white text-sm font-medium hover:bg-purple-500/90 transition-colors cursor-pointer"
+          >
+            Try again
+          </button>
+        </div>
+        {onTopUp && (
+          <button
+            type="button"
+            onClick={onTopUp}
+            className="w-full px-4 py-2.5 rounded-lg border border-purple-200 dark:border-purple-700 text-sm font-medium text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-900/20 dark:hover:bg-purple-900/40 transition-colors cursor-pointer"
+          >
+            {topUpLabel}
+          </button>
+        )}
       </div>
     </div>
   );

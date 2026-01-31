@@ -14,4 +14,8 @@ export { RecipientSelector } from "./recipient-selector";
 export { InfoBox } from "./info-box";
 export { SwapContent } from "./swap-content";
 export { SwapProgress } from "./swap-progress";
+export { RecoveryBanner } from "./recovery-banner";
+export { TransferTab } from "./transfer-tab";
+export { SwapTab } from "./swap-tab";
+export { AnimatedNotice } from "./animated-notice";
 export * from "./types";

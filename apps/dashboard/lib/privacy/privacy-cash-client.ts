@@ -16,6 +16,7 @@ import {
 
 const DEBUG = process.env.NODE_ENV === "development";
 const SIGNATURE_CACHE_KEY_PREFIX = "privacycash-signature-";
+const SIGNATURE_API = "/api/privacy/signature";
 
 const debugLog = (...args: Parameters<typeof console.log>) => {
   if (DEBUG) console.log(...args);
@@ -68,26 +69,80 @@ function getSignatureCacheKey(publicKey: string): string {
   return `${SIGNATURE_CACHE_KEY_PREFIX}${publicKey}`;
 }
 
-function getCachedSignature(publicKey: string): Uint8Array | null {
+function toBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+function fromBase64(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function readLocalSignature(publicKey: string): Uint8Array | null {
   if (typeof window === "undefined") return null;
   try {
-    const cached = sessionStorage.getItem(getSignatureCacheKey(publicKey));
+    const cached = localStorage.getItem(getSignatureCacheKey(publicKey));
     if (!cached) return null;
-    const arr = JSON.parse(cached);
-    if (!Array.isArray(arr)) return null;
-    return new Uint8Array(arr);
+    return fromBase64(cached);
   } catch {
     return null;
   }
 }
 
-function cacheSignature(publicKey: string, signature: Uint8Array): void {
+async function fetchCachedSignature(
+  publicKey: string,
+): Promise<Uint8Array | null> {
+  try {
+    const response = await fetch(
+      `${SIGNATURE_API}?publicKey=${encodeURIComponent(publicKey)}`,
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { signature?: string | null };
+    if (!data.signature) return null;
+    return fromBase64(data.signature);
+  } catch {
+    return null;
+  }
+}
+
+async function getCachedSignature(
+  publicKey: string,
+): Promise<Uint8Array | null> {
+  const local = readLocalSignature(publicKey);
+  if (local) return local;
+  const remote = await fetchCachedSignature(publicKey);
+  if (remote) {
+    cacheSignature(publicKey, remote).catch(() => {});
+  }
+  return remote;
+}
+
+async function cacheSignature(
+  publicKey: string,
+  signature: Uint8Array,
+): Promise<void> {
   if (typeof window === "undefined") return;
   try {
-    sessionStorage.setItem(
-      getSignatureCacheKey(publicKey),
-      JSON.stringify(Array.from(signature)),
-    );
+    localStorage.setItem(getSignatureCacheKey(publicKey), toBase64(signature));
+  } catch {}
+
+  try {
+    await fetch(SIGNATURE_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        publicKey,
+        signature: toBase64(signature),
+      }),
+    });
   } catch {}
 }
 
@@ -123,6 +178,7 @@ export class PrivacyCashClient {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private encryptionService: any = null;
   private initialized = false;
+  private signatureBytes: Uint8Array | null = null;
 
   constructor(config: PrivacyCashClientConfig) {
     this.connection = config.connection;
@@ -147,7 +203,7 @@ export class PrivacyCashClient {
     const sdk = await loadSDK();
     const publicKeyBase58 = this.publicKey.toBase58();
 
-    let signature = getCachedSignature(publicKeyBase58);
+    let signature = await getCachedSignature(publicKeyBase58);
 
     if (!signature) {
       const capturedPublicKey = publicKeyBase58;
@@ -171,8 +227,10 @@ export class PrivacyCashClient {
         );
       }
 
-      cacheSignature(publicKeyBase58, signature);
+      cacheSignature(publicKeyBase58, signature).catch(() => {});
     }
+
+    this.signatureBytes = signature;
 
     this.encryptionService = new sdk.EncryptionService();
     this.encryptionService.deriveEncryptionKeyFromSignature(signature);
@@ -446,5 +504,9 @@ export class PrivacyCashClient {
 
   get isInitialized(): boolean {
     return this.initialized;
+  }
+
+  getSignatureBytes(): Uint8Array | null {
+    return this.signatureBytes;
   }
 }

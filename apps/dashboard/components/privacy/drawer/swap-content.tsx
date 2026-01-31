@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { TokenIcon } from "@/components/token-icon";
 import { type PrivacyCashToken } from "@/lib/privacy/constants";
 import { TOKEN_LOGOS } from "./types";
+import { AnimatedNotice } from "./animated-notice";
 
 // SOL -> SPL only for now
 const ALLOWED_OUTPUT_TOKENS: PrivacyCashToken[] = ["USDC", "USDT"];
@@ -250,14 +251,14 @@ export function SwapContent({
       </p>
 
       {/* No balance message */}
-      {hasNoBalance && (
+      <AnimatedNotice show={hasNoBalance}>
         <div className="flex items-start gap-2 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
           <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-500 shrink-0 mt-0.5" />
           <p className="text-xs text-purple-700 dark:text-purple-400">
             Deposit funds first to swap privately
           </p>
         </div>
-      )}
+      </AnimatedNotice>
     </div>
   );
 }

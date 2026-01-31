@@ -15,7 +15,6 @@ import {
 } from "./constants";
 
 const DEBUG = process.env.NODE_ENV === "development";
-const SIGNATURE_CACHE_KEY_PREFIX = "privacycash-signature-";
 const SIGNATURE_API = "/api/privacy/signature";
 
 const debugLog = (...args: Parameters<typeof console.log>) => {
@@ -65,10 +64,6 @@ async function getLightWasm() {
   return lightWasmInstance;
 }
 
-function getSignatureCacheKey(publicKey: string): string {
-  return `${SIGNATURE_CACHE_KEY_PREFIX}${publicKey}`;
-}
-
 function toBase64(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) {
@@ -86,18 +81,7 @@ function fromBase64(value: string): Uint8Array {
   return bytes;
 }
 
-function readLocalSignature(publicKey: string): Uint8Array | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const cached = localStorage.getItem(getSignatureCacheKey(publicKey));
-    if (!cached) return null;
-    return fromBase64(cached);
-  } catch {
-    return null;
-  }
-}
-
-async function fetchCachedSignature(
+async function getCachedSignature(
   publicKey: string,
 ): Promise<Uint8Array | null> {
   try {
@@ -113,27 +97,10 @@ async function fetchCachedSignature(
   }
 }
 
-async function getCachedSignature(
-  publicKey: string,
-): Promise<Uint8Array | null> {
-  const local = readLocalSignature(publicKey);
-  if (local) return local;
-  const remote = await fetchCachedSignature(publicKey);
-  if (remote) {
-    cacheSignature(publicKey, remote).catch(() => {});
-  }
-  return remote;
-}
-
 async function cacheSignature(
   publicKey: string,
   signature: Uint8Array,
 ): Promise<void> {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(getSignatureCacheKey(publicKey), toBase64(signature));
-  } catch {}
-
   try {
     await fetch(SIGNATURE_API, {
       method: "POST",

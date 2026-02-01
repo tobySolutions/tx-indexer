@@ -131,9 +131,13 @@ function TransactionRowDetails({
   const { tx, classification } = transaction;
   const isSuccess = tx.err === null;
   const isSwap = classification.primaryType === "swap";
-  const isNft = ["nft_purchase", "nft_sale", "nft_mint"].includes(
-    classification.primaryType,
-  );
+  const isNft = [
+    "nft_purchase",
+    "nft_sale",
+    "nft_mint",
+    "nft_receive",
+    "nft_send",
+  ].includes(classification.primaryType);
   const metadata = classification.metadata;
   const nftName =
     metadata && typeof metadata.nft_name === "string"

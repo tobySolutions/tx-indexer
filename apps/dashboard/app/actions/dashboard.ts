@@ -13,6 +13,7 @@ import {
   enrichWalletBalance,
   type EnrichedWalletBalance,
 } from "./token-metadata";
+import { getNftsForWallet, type NftAsset } from "./nfts";
 import {
   STABLECOIN_MINTS,
   SOL_MINT,
@@ -238,19 +239,28 @@ export async function getNewTransactions(
  * 3. Helius DAS (Metaplex on-chain)
  * 4. Fallback (mint prefix)
  */
-export async function getBalanceAndPortfolio(
-  walletAddress: string,
-): Promise<{ balance: EnrichedWalletBalance; portfolio: PortfolioSummary }> {
+export async function getBalanceAndPortfolio(walletAddress: string): Promise<{
+  balance: EnrichedWalletBalance;
+  portfolio: PortfolioSummary;
+  nfts: NftAsset[];
+  nftCount: number;
+}> {
   const indexer = getIndexer();
   const addr = address(walletAddress);
 
   const rawBalance = await indexer.getBalance(addr);
-  const [balance, portfolio] = await Promise.all([
+  const [balance, portfolio, nftResult] = await Promise.all([
     enrichWalletBalance(rawBalance),
     calculatePortfolio(rawBalance),
+    getNftsForWallet(walletAddress, 50),
   ]);
 
-  return { balance, portfolio };
+  return {
+    balance,
+    portfolio,
+    nfts: nftResult.nfts,
+    nftCount: nftResult.total,
+  };
 }
 
 /**

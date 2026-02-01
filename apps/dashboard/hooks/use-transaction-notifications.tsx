@@ -75,6 +75,12 @@ function formatTransactionNotification(
     case "nft_mint":
       title = "NFT Minted";
       break;
+    case "nft_receive":
+      title = "NFT Received";
+      break;
+    case "nft_send":
+      title = "NFT Sent";
+      break;
     case "bridge_in":
       title = "Bridge Received";
       break;

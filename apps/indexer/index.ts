@@ -29,7 +29,7 @@ async function main() {
   console.log("Current Balance");
   console.log("--------------------------------------------");
   console.log(
-    `Address: ${WALLET_ADDRESS_STRING.slice(0, 8)}...${WALLET_ADDRESS_STRING.slice(-8)}`
+    `Address: ${WALLET_ADDRESS_STRING.slice(0, 8)}...${WALLET_ADDRESS_STRING.slice(-8)}`,
   );
   console.log(`SOL: ${balance.sol.ui.toFixed(9)}`);
 
@@ -60,7 +60,6 @@ async function main() {
   console.log(`\nShowing ${filteredTransactions.length} transactions\n`);
 
   filteredTransactions.forEach(({ tx, classification, legs }, index) => {
-
     const date = tx.blockTime
       ? new Date(Number(tx.blockTime) * 1000).toLocaleString()
       : "Pending";
@@ -89,8 +88,8 @@ async function main() {
         const sign = change.change.ui > 0 ? "+" : "";
         console.log(
           `     ${change.tokenInfo.symbol}: ${sign}${change.change.ui.toFixed(
-            change.tokenInfo.decimals
-          )}`
+            change.tokenInfo.decimals,
+          )}`,
         );
       }
     } else {
@@ -105,26 +104,25 @@ async function main() {
 
     console.log(`\n   Classification:`);
     console.log(`     Type: ${classification.primaryType}`);
-    console.log(`     Direction: ${classification.direction}`);
     if (classification.primaryAmount) {
       console.log(
         `     Amount: ${classification.primaryAmount.amountUi.toFixed(
-          classification.primaryAmount.token.decimals
-        )} ${classification.primaryAmount.token.symbol}`
+          classification.primaryAmount.token.decimals,
+        )} ${classification.primaryAmount.token.symbol}`,
       );
     }
     if (classification.secondaryAmount) {
       console.log(
         `     Received: ${classification.secondaryAmount.amountUi.toFixed(
-          classification.secondaryAmount.token.decimals
-        )} ${classification.secondaryAmount.token.symbol}`
+          classification.secondaryAmount.token.decimals,
+        )} ${classification.secondaryAmount.token.symbol}`,
       );
     }
     if (classification.counterparty) {
       console.log(`     Counterparty: ${classification.counterparty.name}`);
       if (classification.counterparty.address) {
         console.log(
-          `       Address: ${classification.counterparty.address.slice(0, 8)}...${classification.counterparty.address.slice(-8)}`
+          `       Address: ${classification.counterparty.address.slice(0, 8)}...${classification.counterparty.address.slice(-8)}`,
         );
       }
     }
@@ -146,7 +144,7 @@ async function main() {
     console.log(`     Confidence: ${classification.confidence}`);
     console.log(`     Relevant: ${classification.isRelevant ? "Yes" : "No"}`);
     console.log(
-      `\n   Accounting: ${legs.length} legs (${validation.isBalanced ? "✓ balanced" : "⚠ unbalanced"})`
+      `\n   Accounting: ${legs.length} legs (${validation.isBalanced ? "✓ balanced" : "⚠ unbalanced"})`,
     );
   });
 

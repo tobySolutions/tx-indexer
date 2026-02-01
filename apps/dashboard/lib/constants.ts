@@ -38,7 +38,7 @@ export const STATEMENT_WINDOW_DAYS = 31;
 export const STATEMENT_WINDOW_MS = STATEMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 /** Number of days to show in watch mode (shorter for lighter load) */
-export const WATCH_STATEMENT_WINDOW_DAYS = 15;
+export const WATCH_STATEMENT_WINDOW_DAYS = 10;
 
 /** Watch mode statement window in milliseconds */
 export const WATCH_STATEMENT_WINDOW_MS =

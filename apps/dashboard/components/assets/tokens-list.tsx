@@ -116,17 +116,17 @@ export function TokensList({ balance, walletAddress }: TokensListProps) {
         </div>
       ) : (
         <AssetListWithHover
-          tokens={sortedTokens.slice(0, 10)}
+          tokens={sortedTokens.slice(0, 5)}
           priceData={priceData}
           walletAddress={walletAddress}
         />
       )}
 
-      {/* Show count if more than 10 */}
-      {!isLoading && sortedTokens.length > 10 && (
+      {/* Show count if more than 5 */}
+      {!isLoading && sortedTokens.length > 5 && (
         <div className="px-4 py-3 border-t border-neutral-100 dark:border-neutral-800 text-center">
           <span className="text-xs text-neutral-400 dark:text-neutral-500">
-            +{sortedTokens.length - 10} more tokens
+            +{sortedTokens.length - 5} more tokens
           </span>
         </div>
       )}

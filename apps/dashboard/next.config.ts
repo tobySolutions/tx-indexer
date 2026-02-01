@@ -1,16 +1,34 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // No need to expose RPC_URL - it's automatically available in server actions
-  // NEXT_PUBLIC_* vars are automatically exposed to the client
   experimental: {
-    // Optimize barrel imports for faster dev boot and smaller bundles
-    // lucide-react has 1500+ icons - direct imports save ~200-800ms cold start
     optimizePackageImports: ["lucide-react"],
   },
-  // Exclude problematic WASM packages from bundling
-  // @lightprotocol/hasher.rs has WASM files that Turbopack can't handle
   serverExternalPackages: ["@lightprotocol/hasher.rs", "privacycash"],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cdn.helius-rpc.com",
+      },
+      {
+        protocol: "https",
+        hostname: "ipfs.io",
+      },
+      {
+        protocol: "https",
+        hostname: "arweave.net",
+      },
+      {
+        protocol: "https",
+        hostname: "*.arweave.net",
+      },
+      {
+        protocol: "https",
+        hostname: "nftstorage.link",
+      },
+    ],
+  },
 };
 
 // Wrap with bundle analyzer when ANALYZE=true

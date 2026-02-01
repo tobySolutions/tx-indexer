@@ -13,7 +13,8 @@ interface WatchPortfolioCardProps {
  * Placed at the layout level so it persists across tab navigation.
  */
 export function WatchPortfolioCard({ walletAddress }: WatchPortfolioCardProps) {
-  const { balance, portfolio, isLoading } = useWatchPortfolio(walletAddress);
+  const { balance, portfolio, nftCount, isLoading } =
+    useWatchPortfolio(walletAddress);
 
   // Loading skeleton
   if (isLoading) {
@@ -47,6 +48,7 @@ export function WatchPortfolioCard({ walletAddress }: WatchPortfolioCardProps) {
       <PortfolioOverview
         portfolio={portfolio}
         tokenCount={balance.tokens.length}
+        nftCount={nftCount}
       />
 
       {/* Export CSV - Coming Soon */}

@@ -7,6 +7,7 @@ import {
   type PortfolioSummary,
 } from "@/app/actions/dashboard";
 import type { EnrichedWalletBalance } from "@/app/actions/token-metadata";
+import type { NftAsset } from "@/app/actions/nfts";
 import {
   USDC_MINT,
   EMPTY_DASHBOARD_QUERY_KEY,
@@ -16,7 +17,6 @@ import {
   FAST_STALE_TIME_MS,
 } from "@/lib/constants";
 
-// Query key factory for dashboard data
 export const dashboardKeys = {
   all: ["dashboard"] as const,
   balanceAndPortfolio: (address: string) =>
@@ -26,6 +26,8 @@ export const dashboardKeys = {
 interface BalanceAndPortfolioData {
   balance: EnrichedWalletBalance;
   portfolio: PortfolioSummary;
+  nfts: NftAsset[];
+  nftCount: number;
 }
 
 interface UseDashboardDataOptions {
@@ -91,6 +93,8 @@ export function useDashboardData(
   return {
     portfolio: query.data?.portfolio ?? null,
     balance: query.data?.balance ?? null,
+    nfts: query.data?.nfts ?? [],
+    nftCount: query.data?.nftCount ?? 0,
     usdcBalance,
     isLoading: query.isLoading,
     isFetching: query.isFetching,

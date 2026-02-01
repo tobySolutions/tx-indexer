@@ -2,6 +2,7 @@
 
 import { bitcountFont } from "@/lib/fonts";
 import { WatchTokensList } from "./watch-tokens-list";
+import { WatchNftGrid } from "./watch-nft-grid";
 import { AssetsSkeleton } from "@/components/assets/assets-skeleton";
 import { useWatchPortfolio } from "@/hooks/use-watch-data";
 import { Layers } from "lucide-react";
@@ -14,7 +15,7 @@ interface WatchAssetsProps {
  * Watch mode assets view - read-only version without action buttons
  */
 export function WatchAssets({ walletAddress }: WatchAssetsProps) {
-  const { balance, portfolio, isLoading, error } =
+  const { balance, portfolio, nfts, nftCount, isLoading, error } =
     useWatchPortfolio(walletAddress);
 
   // Loading state
@@ -74,6 +75,7 @@ export function WatchAssets({ walletAddress }: WatchAssetsProps) {
 
       <div className="space-y-4">
         <WatchTokensList balance={balance} />
+        <WatchNftGrid nfts={nfts} total={nftCount} />
       </div>
     </div>
   );

@@ -1,55 +1,5 @@
 "use client";
 
-/**
- * Privacy Cash React Hook
- *
- * React hook for Privacy Cash protocol operations.
- * Provides shield (deposit) and unshield (withdraw) functionality with
- * automatic wallet integration and state management.
- *
- * @example
- * ```tsx
- * function PrivacyPanel() {
- *   const {
- *     privateBalance,
- *     status,
- *     isProcessing,
- *     shield,
- *     unshield,
- *     error,
- *   } = usePrivacyCash();
- *
- *   const handleShield = async () => {
- *     const result = await shield({ amount: 1.0, token: "SOL" });
- *     if (result.signature) {
- *       console.log("Shielded successfully:", result.signature);
- *     }
- *   };
- *
- *   const handleUnshield = async () => {
- *     const result = await unshield({
- *       amount: 0.5,
- *       token: "SOL",
- *       recipientAddress: "...",
- *     });
- *     if (result.signature) {
- *       console.log("Unshielded successfully:", result.signature);
- *     }
- *   };
- *
- *   return (
- *     <div>
- *       <p>Private Balance: {privateBalance?.amount ?? 0} SOL</p>
- *       <button onClick={handleShield} disabled={isProcessing}>
- *         Shield Funds
- *       </button>
- *       {error && <p className="error">{error}</p>}
- *     </div>
- *   );
- * }
- * ```
- */
-
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useWallet } from "@solana/react-hooks";
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
@@ -64,14 +14,6 @@ import {
 } from "@/lib/privacy/privacy-cash-client";
 import { detectWalletProvider } from "@/lib/wallet-transactions";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Operation status for privacy operations.
- * Tracks the lifecycle of shield/unshield operations.
- */
 export type PrivacyCashStatus =
   | "idle"
   | "initializing"
@@ -83,102 +25,51 @@ export type PrivacyCashStatus =
   | "success"
   | "error";
 
-/**
- * Parameters for shielding (depositing) funds.
- */
 export interface ShieldParams {
-  /** Amount to shield in UI units (e.g., 1.5 for 1.5 SOL) */
   amount: number;
-  /** Token to shield */
   token: PrivacyCashToken;
 }
 
-/**
- * Parameters for unshielding (withdrawing) funds.
- */
 export interface UnshieldParams {
-  /** Amount to unshield in UI units */
   amount: number;
-  /** Token to unshield */
   token: PrivacyCashToken;
-  /** Destination address (can be any Solana address) */
   recipientAddress: string;
 }
 
-/**
- * Result of a shield or unshield operation.
- */
 export interface PrivacyOperationResult {
-  /** Transaction signature (null if failed) */
   signature: string | null;
-  /** Error message (null if successful) */
   error: string | null;
-  /** Whether the withdrawal was partial (unshield only) */
   isPartial?: boolean;
-  /** Fee charged (unshield only, in token units) */
   fee?: number;
 }
 
-/**
- * Return type of usePrivacyCash hook.
- */
 export interface UsePrivacyCashReturn {
-  /** Current private balance (null if not loaded) */
   privateBalance: PrivacyBalance | null;
-  /** Whether balance is currently loading */
   isLoadingBalance: boolean;
-  /** Current operation status */
   status: PrivacyCashStatus;
-  /** Whether an operation is in progress */
   isProcessing: boolean;
-  /** Whether the client has been initialized */
   isInitialized: boolean;
-  /** Last successful transaction signature */
   signature: string | null;
-  /** Last error message */
   error: string | null;
-  /** Initialize the privacy client (prompts user to sign) */
   initialize: () => Promise<void>;
-  /** Shield funds into the private pool */
   shield: (params: ShieldParams) => Promise<PrivacyOperationResult>;
-  /** Unshield funds from the private pool */
   unshield: (params: UnshieldParams) => Promise<PrivacyOperationResult>;
-  /** Refresh the private balance (silent mode skips status updates) */
   refreshBalance: (token?: PrivacyCashToken, silent?: boolean) => Promise<void>;
-  /** Reset state to idle */
   reset: () => void;
-  /** Check if a token is supported */
   isTokenSupported: (token: string) => boolean;
-  /** Get the underlying client instance (null if not connected) */
   getClient: () => PrivacyCashClient | null;
 }
-
-// =============================================================================
-// Constants
-// =============================================================================
 
 const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL ??
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
   "https://api.mainnet-beta.solana.com";
 
-// =============================================================================
-// Hook Implementation
-// =============================================================================
+const DEBUG = process.env.NODE_ENV === "development";
+const debugLog = (...args: Parameters<typeof console.log>) => {
+  if (DEBUG) console.log(...args);
+};
 
-/**
- * React hook for Privacy Cash operations.
- *
- * This hook manages:
- * - Client lifecycle (creation, initialization)
- * - Operation state (status, errors, signatures)
- * - Wallet adapter bridging (web3.js v2 -> v1)
- *
- * The Privacy Cash SDK is lazy-loaded when first needed.
- *
- * @param defaultToken - Default token for balance queries (default: "SOL")
- * @returns UsePrivacyCashReturn
- */
 export function usePrivacyCash(
   defaultToken: PrivacyCashToken = "SOL",
 ): UsePrivacyCashReturn {
@@ -199,21 +90,15 @@ export function usePrivacyCash(
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Keep ref in sync with state
   useEffect(() => {
     isInitializedRef.current = isInitialized;
   }, [isInitialized]);
 
-  // Derived wallet state
   const walletAddress =
     wallet.status === "connected"
       ? wallet.session.account.address.toString()
       : null;
   const walletSession = wallet.status === "connected" ? wallet.session : null;
-
-  // ---------------------------------------------------------------------------
-  // Connection management
-  // ---------------------------------------------------------------------------
 
   const getConnection = useCallback(() => {
     if (!connectionRef.current) {
@@ -222,22 +107,14 @@ export function usePrivacyCash(
     return connectionRef.current;
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Wallet adapter bridging
-  // The dashboard uses @solana/react-hooks (web3.js v2 ecosystem)
-  // Privacy Cash SDK uses @solana/web3.js v1
-  // We use the wallet provider directly from window for transaction signing
-  // ---------------------------------------------------------------------------
-
   const createSignTransaction = useCallback(() => {
-    // Use the wallet provider directly from window (same pattern as wallet-transactions.ts)
     const provider = detectWalletProvider();
     if (!provider?.signTransaction) return null;
 
     return async (tx: VersionedTransaction): Promise<VersionedTransaction> => {
-      console.log("[PrivacyCash] Signing transaction with provider...");
+      debugLog("[PrivacyCash] Signing transaction with provider...");
       const signed = await provider.signTransaction!(tx);
-      console.log("[PrivacyCash] Transaction signed successfully");
+      debugLog("[PrivacyCash] Transaction signed successfully");
       return signed;
     };
   }, []);
@@ -251,10 +128,6 @@ export function usePrivacyCash(
     };
   }, [walletSession]);
 
-  // ---------------------------------------------------------------------------
-  // Client management
-  // ---------------------------------------------------------------------------
-
   const getClient = useCallback(() => {
     if (!walletAddress || !walletSession) {
       return null;
@@ -267,7 +140,6 @@ export function usePrivacyCash(
       return null;
     }
 
-    // Create new client if wallet changed
     if (lastAddressRef.current !== walletAddress) {
       const publicKey = new PublicKey(walletAddress);
 
@@ -291,10 +163,6 @@ export function usePrivacyCash(
     getConnection,
   ]);
 
-  // ---------------------------------------------------------------------------
-  // Cleanup on wallet disconnect
-  // ---------------------------------------------------------------------------
-
   useEffect(() => {
     if (wallet.status !== "connected") {
       setPrivateBalance(null);
@@ -304,10 +172,6 @@ export function usePrivacyCash(
       isInitializingRef.current = false;
     }
   }, [wallet.status]);
-
-  // ---------------------------------------------------------------------------
-  // Operations
-  // ---------------------------------------------------------------------------
 
   const initialize = useCallback(async (): Promise<void> => {
     const client = getClient();
@@ -360,7 +224,6 @@ export function usePrivacyCash(
         return;
       }
 
-      // Only update status if not in silent mode (e.g., after success)
       if (!silent) {
         setStatus("loading_balance");
         setError(null);
@@ -505,10 +368,6 @@ export function usePrivacyCash(
   const isTokenSupported = useCallback((token: string): boolean => {
     return token in PRIVACY_CASH_SUPPORTED_TOKENS;
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Computed values
-  // ---------------------------------------------------------------------------
 
   const isProcessing =
     status === "initializing" ||

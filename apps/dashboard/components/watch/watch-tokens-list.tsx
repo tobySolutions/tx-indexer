@@ -66,9 +66,8 @@ export function WatchTokensList({ balance }: WatchTokensListProps) {
     }
   }, [allTokens]);
 
-  // Sort tokens by USD value (highest first), then by symbol
   const sortedTokens = useMemo(() => {
-    return [...allTokens].sort((a, b) => {
+    return allTokens.toSorted((a, b) => {
       const priceA = priceData.get(a.mint)?.price ?? 0;
       const priceB = priceData.get(b.mint)?.price ?? 0;
       const valueA = a.amount.ui * priceA;
@@ -117,7 +116,7 @@ export function WatchTokensList({ balance }: WatchTokensListProps) {
       {isLoading ? (
         <div>
           {Array.from({ length: Math.min(allTokens.length, 5) }).map((_, i) => (
-            <TokenRowSkeleton key={i} />
+            <div key={i}>{tokenRowSkeleton}</div>
           ))}
         </div>
       ) : (
@@ -171,26 +170,24 @@ export function WatchTokensList({ balance }: WatchTokensListProps) {
   );
 }
 
-function TokenRowSkeleton() {
-  return (
-    <div className="p-4 animate-pulse">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700" />
-          <div className="space-y-1">
-            <div className="w-12 h-4 rounded bg-neutral-200 dark:bg-neutral-700" />
-            <div className="w-20 h-3 rounded bg-neutral-100 dark:bg-neutral-800" />
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 w-24">
-            <div className="w-12 h-5 rounded bg-neutral-100 dark:bg-neutral-800" />
-            <div className="w-10 h-4 rounded bg-neutral-100 dark:bg-neutral-800" />
-          </div>
-          <div className="w-24 h-4 rounded bg-neutral-200 dark:bg-neutral-700" />
-          <div className="w-4 h-4 rounded bg-neutral-100 dark:bg-neutral-800" />
+const tokenRowSkeleton = (
+  <div className="p-4 animate-pulse">
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700" />
+        <div className="space-y-1">
+          <div className="w-12 h-4 rounded bg-neutral-200 dark:bg-neutral-700" />
+          <div className="w-20 h-3 rounded bg-neutral-100 dark:bg-neutral-800" />
         </div>
       </div>
+      <div className="flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-2 w-24">
+          <div className="w-12 h-5 rounded bg-neutral-100 dark:bg-neutral-800" />
+          <div className="w-10 h-4 rounded bg-neutral-100 dark:bg-neutral-800" />
+        </div>
+        <div className="w-24 h-4 rounded bg-neutral-200 dark:bg-neutral-700" />
+        <div className="w-4 h-4 rounded bg-neutral-100 dark:bg-neutral-800" />
+      </div>
     </div>
-  );
-}
+  </div>
+);

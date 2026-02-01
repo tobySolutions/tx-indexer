@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.5.0
+
+### Minor Changes
+
+- Add NFT transfer classification for marketplace and P2P transactions:
+  - New transaction types:
+    - `nft_purchase` - NFT bought on marketplace
+    - `nft_sale` - NFT sold on marketplace
+    - `nft_receive` - NFT received via direct transfer
+    - `nft_send` - NFT sent via direct transfer
+
+  - NFT marketplace detection for:
+    - Magic Eden (v2, MMM)
+    - Tensor (swap, marketplace, AMM)
+    - Hadeswap
+    - Metaplex Auction House
+    - Formfunction
+
+  - Smart classification logic:
+    - Direct NFT transfers detected by decimals=0 token movements
+    - Marketplace buy/sell determined by wallet perspective
+    - Escrow pattern handling (falls back to SOL flow analysis)
+    - Confidence levels: 0.9 for direct, 0.85 for SOL-flow based
+
+  ```typescript
+  const tx = await indexer.getTransaction(signature);
+
+  if (tx.classification.primaryType === "nft_sale") {
+    console.log(
+      "Sold NFT for",
+      tx.classification.secondaryAmount?.amountUi,
+      "SOL",
+    );
+  }
+
+  if (tx.classification.primaryType === "nft_receive") {
+    console.log("Received NFT:", tx.classification.metadata?.nft_name);
+  }
+  ```
+
 ## 1.4.0
 
 ### Minor Changes

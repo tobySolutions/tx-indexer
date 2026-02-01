@@ -7,6 +7,7 @@ import { AirdropClassifier } from "../classifiers/airdrop-classifier";
 import { FeeOnlyClassifier } from "../classifiers/fee-only-classifier";
 import { SolanaPayClassifier } from "../classifiers/solana-pay-classifier";
 import { NftMintClassifier } from "../classifiers/nft-mint-classifier";
+import { NftTransferClassifier } from "../classifiers/nft-transfer-classifier";
 import { StakeDepositClassifier } from "../classifiers/stake-deposit-classifier";
 import { StakeWithdrawClassifier } from "../classifiers/stake-withdraw-classifier";
 import { BridgeClassifier } from "../classifiers/bridge-classifier";
@@ -20,6 +21,7 @@ export class ClassificationService {
     this.registerClassifier(new PrivacyCashClassifier());
     this.registerClassifier(new BridgeClassifier());
     this.registerClassifier(new NftMintClassifier());
+    this.registerClassifier(new NftTransferClassifier());
     this.registerClassifier(new StakeDepositClassifier());
     this.registerClassifier(new StakeWithdrawClassifier());
     this.registerClassifier(new SwapClassifier());
@@ -66,7 +68,7 @@ export const classificationService = new ClassificationService();
 /**
  * Classifies a transaction based on its accounting legs and context.
  *
- * Uses a priority-ordered chain of classifiers (Solana Pay > Privacy Cash > Bridge > NFT Mint > Stake Deposit > Stake Withdraw > Swap > Airdrop > Transfer > Fee-only)
+ * Uses a priority-ordered chain of classifiers (Solana Pay > Privacy Cash > Bridge > NFT Mint > NFT Transfer > Stake Deposit > Stake Withdraw > Swap > Airdrop > Transfer > Fee-only)
  * to determine the transaction type, direction, amounts, sender, and receiver.
  *
  * @param legs - Transaction legs representing all balance movements

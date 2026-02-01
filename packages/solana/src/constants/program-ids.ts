@@ -105,6 +105,36 @@ export const MAGIC_EDEN_CANDY_MACHINE_ID =
   "CMZYPASGWeTz7RNGHaRJfCq2XQ5pYK6nDvVQxzkH51zb";
 
 // ============================================
+// NFT Marketplace Programs
+// ============================================
+
+// Magic Eden
+export const MAGIC_EDEN_V2_PROGRAM_ID =
+  "M2mx93ekt1fmXSVkTrUL9xVFHkmME8HTUi5Cyc5aF7K";
+export const MAGIC_EDEN_MMM_PROGRAM_ID =
+  "mmm3XBJg5gk8XJxEKBvdgptZz6SgK4tXvn36sodowMc";
+
+// Tensor
+export const TENSOR_SWAP_PROGRAM_ID =
+  "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN";
+export const TENSOR_MARKETPLACE_PROGRAM_ID =
+  "TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp";
+export const TENSOR_AMM_PROGRAM_ID =
+  "TAMM6ub33ij1mbetoMyVBLeKY5iP41i4UPUJQGkhfsg";
+
+// Hadeswap
+export const HADESWAP_PROGRAM_ID =
+  "hadeK9DLv9eA7ya5KCTqSvSvRZeJC3JgD5a9Y3CNbvu";
+
+// Metaplex Auction House
+export const METAPLEX_AUCTION_HOUSE_PROGRAM_ID =
+  "hausS13jsjafwWwGqZTUQRmWyvyxn9EQpqMwV1PBBmk";
+
+// Formfunction (Exchange Art)
+export const FORMFUNCTION_PROGRAM_ID =
+  "formn3hJtt8gvVKxpCfzCJGuoz6CNUFcULFZW18iTpC";
+
+// ============================================
 // Privacy Programs
 // ============================================
 
@@ -182,6 +212,17 @@ export const NFT_PROGRAM_IDS = [
   CANDY_GUARD_PROGRAM_ID,
   BUBBLEGUM_PROGRAM_ID,
   MAGIC_EDEN_CANDY_MACHINE_ID,
+] as const;
+
+export const NFT_MARKETPLACE_IDS = [
+  MAGIC_EDEN_V2_PROGRAM_ID,
+  MAGIC_EDEN_MMM_PROGRAM_ID,
+  TENSOR_SWAP_PROGRAM_ID,
+  TENSOR_MARKETPLACE_PROGRAM_ID,
+  TENSOR_AMM_PROGRAM_ID,
+  HADESWAP_PROGRAM_ID,
+  METAPLEX_AUCTION_HOUSE_PROGRAM_ID,
+  FORMFUNCTION_PROGRAM_ID,
 ] as const;
 
 export const BRIDGE_PROGRAM_IDS = [

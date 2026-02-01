@@ -16,6 +16,8 @@ export const TxPrimaryTypeSchema = z.enum([
   "nft_purchase",
   "nft_sale",
   "nft_mint",
+  "nft_receive",
+  "nft_send",
   "stake_deposit",
   "stake_withdraw",
   "token_deposit",
@@ -26,9 +28,8 @@ export const TxPrimaryTypeSchema = z.enum([
   "reward",
   "fee_only",
   "other",
-  // Privacy transaction types (Solana Privacy Hack 2026)
-  "privacy_deposit", // Shielding funds into privacy pool
-  "privacy_withdraw", // Unshielding funds from pool
+  "privacy_deposit",
+  "privacy_withdraw",
 ]);
 
 export const TxCategorySchema = z.enum([

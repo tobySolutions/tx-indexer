@@ -33,6 +33,15 @@ import {
   CANDY_MACHINE_V3_PROGRAM_ID,
   BUBBLEGUM_PROGRAM_ID,
   MAGIC_EDEN_CANDY_MACHINE_ID,
+  // NFT Marketplace programs
+  MAGIC_EDEN_V2_PROGRAM_ID,
+  MAGIC_EDEN_MMM_PROGRAM_ID,
+  TENSOR_SWAP_PROGRAM_ID,
+  TENSOR_MARKETPLACE_PROGRAM_ID,
+  TENSOR_AMM_PROGRAM_ID,
+  HADESWAP_PROGRAM_ID,
+  METAPLEX_AUCTION_HOUSE_PROGRAM_ID,
+  FORMFUNCTION_PROGRAM_ID,
   // Staking programs
   STAKE_POOL_PROGRAM_ID,
   STAKE_PROGRAM_ID,
@@ -189,6 +198,40 @@ const KNOWN_PROGRAMS: Record<string, ProtocolInfo> = {
     name: "Nft Candy Machine Program (Magic Eden)",
   },
 
+  // NFT Marketplaces
+  [MAGIC_EDEN_V2_PROGRAM_ID]: {
+    id: "magic-eden",
+    name: "Magic Eden",
+  },
+  [MAGIC_EDEN_MMM_PROGRAM_ID]: {
+    id: "magic-eden-mmm",
+    name: "Magic Eden MMM",
+  },
+  [TENSOR_SWAP_PROGRAM_ID]: {
+    id: "tensor",
+    name: "Tensor",
+  },
+  [TENSOR_MARKETPLACE_PROGRAM_ID]: {
+    id: "tensor-marketplace",
+    name: "Tensor Marketplace",
+  },
+  [TENSOR_AMM_PROGRAM_ID]: {
+    id: "tensor-amm",
+    name: "Tensor AMM",
+  },
+  [HADESWAP_PROGRAM_ID]: {
+    id: "hadeswap",
+    name: "Hadeswap",
+  },
+  [METAPLEX_AUCTION_HOUSE_PROGRAM_ID]: {
+    id: "auction-house",
+    name: "Metaplex Auction House",
+  },
+  [FORMFUNCTION_PROGRAM_ID]: {
+    id: "formfunction",
+    name: "Formfunction",
+  },
+
   // Staking programs
   [STAKE_PROGRAM_ID]: {
     id: "stake",
@@ -259,12 +302,21 @@ const PRIORITY_ORDER = [
   // Stableswap
   "saber",
   "mercurial",
-  // NFT
+  // NFT Minting
   "metaplex",
   "candy-guard",
   "candy-machine-v3",
   "bubblegum",
   "magic-eden-candy-machine",
+  // NFT Marketplaces
+  "magic-eden",
+  "magic-eden-mmm",
+  "tensor",
+  "tensor-marketplace",
+  "tensor-amm",
+  "hadeswap",
+  "auction-house",
+  "formfunction",
   // Staking
   "stake",
   "stake-pool",
@@ -320,6 +372,17 @@ const NFT_MINT_PROTOCOL_IDS = new Set([
   "magic-eden-candy-machine",
 ]);
 
+const NFT_MARKETPLACE_PROTOCOL_IDS = new Set([
+  "magic-eden",
+  "magic-eden-mmm",
+  "tensor",
+  "tensor-marketplace",
+  "tensor-amm",
+  "hadeswap",
+  "auction-house",
+  "formfunction",
+]);
+
 const STAKE_PROTOCOL_IDS = new Set(["stake", "stake-pool"]);
 
 const BRIDGE_PROTOCOL_IDS = new Set([
@@ -355,6 +418,17 @@ export function isDexProtocolById(protocolId: string | undefined): boolean {
  */
 export function isNftMintProtocolById(protocolId: string | undefined): boolean {
   return protocolId !== undefined && NFT_MINT_PROTOCOL_IDS.has(protocolId);
+}
+
+/**
+ * Checks if a protocol ID string corresponds to an NFT Marketplace
+ */
+export function isNftMarketplaceProtocolById(
+  protocolId: string | undefined,
+): boolean {
+  return (
+    protocolId !== undefined && NFT_MARKETPLACE_PROTOCOL_IDS.has(protocolId)
+  );
 }
 
 /**

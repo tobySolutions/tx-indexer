@@ -205,20 +205,34 @@ interface ClassifiedTransaction {
 
 ## Transaction Types
 
-| Type             | Description                                      |
-| ---------------- | ------------------------------------------------ |
-| `transfer`       | Wallet-to-wallet transfers                       |
-| `swap`           | Token exchanges (Jupiter, Raydium, Orca, etc.)   |
-| `nft_mint`       | NFT minting (Metaplex, Candy Machine, Bubblegum) |
-| `nft_purchase`   | NFT purchase                                     |
-| `nft_sale`       | NFT sale                                         |
-| `stake_deposit`  | SOL staking deposits                             |
-| `stake_withdraw` | SOL staking withdrawals                          |
-| `bridge_in`      | Receiving from bridge (Wormhole, deBridge)       |
-| `bridge_out`     | Sending to bridge                                |
-| `airdrop`        | Token distributions                              |
-| `fee_only`       | Transactions with only network fees              |
-| `other`          | Unclassified transactions                        |
+| Type             | Description                                              |
+| ---------------- | -------------------------------------------------------- |
+| `transfer`       | Wallet-to-wallet transfers                               |
+| `swap`           | Token exchanges (Jupiter, Raydium, Orca, etc.)           |
+| `nft_mint`       | NFT minting (Metaplex, Candy Machine, Bubblegum)         |
+| `nft_purchase`   | NFT bought on marketplace (Magic Eden, Tensor, Hadeswap) |
+| `nft_sale`       | NFT sold on marketplace                                  |
+| `nft_receive`    | NFT received via direct P2P transfer                     |
+| `nft_send`       | NFT sent via direct P2P transfer                         |
+| `stake_deposit`  | SOL staking deposits                                     |
+| `stake_withdraw` | SOL staking withdrawals                                  |
+| `bridge_in`      | Receiving from bridge (Wormhole, deBridge)               |
+| `bridge_out`     | Sending to bridge                                        |
+| `airdrop`        | Token distributions                                      |
+| `fee_only`       | Transactions with only network fees                      |
+| `other`          | Unclassified transactions                                |
+
+### NFT Marketplace Support
+
+The SDK detects and classifies NFT transactions from major Solana marketplaces:
+
+- **Magic Eden** - v2 and MMM (Market Making) programs
+- **Tensor** - Swap, Marketplace, and AMM programs
+- **Hadeswap** - AMM-based NFT trading
+- **Metaplex Auction House** - Decentralized auction protocol
+- **Formfunction** - Art-focused marketplace
+
+For marketplace transactions, the classifier uses wallet perspective to determine if a transaction is a purchase or sale. When the wallet isn't directly involved in the NFT token movement (common with escrow patterns), it falls back to analyzing SOL/token flow.
 
 ## Entry Points
 

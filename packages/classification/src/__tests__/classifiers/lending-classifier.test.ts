@@ -114,6 +114,44 @@ describe("LendingClassifier", () => {
       expect(result?.primaryAmount?.amountUi).toBe(depositAmount);
       expect(result?.metadata?.protocol).toBe("kamino-lending");
     });
+
+    test("should classify deposit into Kamino vault (deposit USDC, receive kUSDC)", () => {
+      const userAddress = "USER123";
+      const depositAmount = 1000;
+      const receiptAmount = 950;
+      const legs = [
+        createMockLeg({
+          accountId: `external:${userAddress}`,
+          side: "debit",
+          role: "fee",
+          amount: createSolAmount(0.000005),
+        }),
+        createMockLeg({
+          accountId: `external:${userAddress}`,
+          side: "debit",
+          role: "protocol_deposit",
+          amount: createUsdcAmount(depositAmount),
+        }),
+        createMockLeg({
+          accountId: `external:${userAddress}`,
+          side: "credit",
+          role: "protocol_withdraw",
+          amount: createTokenAmount("kUSDC", 6, receiptAmount),
+        }),
+      ];
+      const tx = createMockTransaction({
+        protocol: { id: "kamino-vault", name: "Kamino Vault" },
+        accountKeys: [userAddress],
+      });
+
+      const result = classifier.classify({ legs, tx });
+
+      expect(result).not.toBeNull();
+      expect(result?.primaryType).toBe("token_deposit");
+      expect(result?.primaryAmount?.token.symbol).toBe("USDC");
+      expect(result?.primaryAmount?.amountUi).toBe(depositAmount);
+      expect(result?.metadata?.protocol).toBe("kamino-vault");
+    });
   });
 
   describe("token withdrawals", () => {

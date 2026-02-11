@@ -57,6 +57,7 @@ import {
   MARGINFI_PROGRAM_ID,
   SOLEND_PROGRAM_ID,
   KAMINO_LENDING_PROGRAM_ID,
+  KAMINO_VAULT_PROGRAM_ID,
 } from "@tx-indexer/solana/constants/program-ids";
 
 const KNOWN_PROGRAMS: Record<string, ProtocolInfo> = {
@@ -287,6 +288,10 @@ const KNOWN_PROGRAMS: Record<string, ProtocolInfo> = {
     id: "kamino-lending",
     name: "Kamino Lending",
   },
+  [KAMINO_VAULT_PROGRAM_ID]: {
+    id: "kamino-vault",
+    name: "Kamino Vault",
+  },
 };
 
 const PRIORITY_ORDER = [
@@ -342,6 +347,7 @@ const PRIORITY_ORDER = [
   "marginfi",
   "solend",
   "kamino-lending",
+  "kamino-vault",
   // Infrastructure (lowest priority)
   "memo",
   "memo-v1",
@@ -421,6 +427,7 @@ const LENDING_PROTOCOL_IDS = new Set([
   "marginfi",
   "solend",
   "kamino-lending",
+  "kamino-vault",
 ]);
 
 /**
